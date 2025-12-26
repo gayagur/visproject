@@ -151,9 +151,15 @@ The dashboard analyzes:
 | Member |
 |:------:|
 | 👤 **Gaya gur** | 
+<<<<<<< HEAD
 | 👤 **Moran shavit** | 
 | 👤 **Tamar hagbi** | 
 | 👤 **Matias Gernik** |
+=======
+| 👤 **Moram shavit** | 
+| 👤 **Tamar hagbi** | 
+| 👤 **Matias Garnik** |
+>>>>>>> 33d33a7697d8d7c1cd841e94884c9a50491a2e2d
 
 *Please update with actual team member names*
 
@@ -241,4 +247,9 @@ For questions or issues, please contact the development team.
 
 ⭐ **Star this project if you find it useful!** ⭐
 
+<<<<<<< HEAD
 </div>
+=======
+</div>
+
+>>>>>>> 33d33a7697d8d7c1cd841e94884c9a50491a2e2d
