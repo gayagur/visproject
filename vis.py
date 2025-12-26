@@ -2,6 +2,7 @@
 import os
 import numpy as np
 import pandas as pd
+import logging
 
 from dash import Dash, html, dcc, Input, Output, State, ALL, callback_context
 import dash_bootstrap_components as dbc
@@ -11,6 +12,10 @@ import plotly.io as pio
 
 # Disable Jupyter integration
 os.environ["DASH_DISABLE_JUPYTER"] = "True"
+
+# Disable Flask/Dash request logging
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 
 # ========================= CONFIG =========================
 CSV_PATH = os.getenv(
@@ -2864,4 +2869,6 @@ def toggle_buyer_methodology(n_clicks, is_open):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8050))
     debug = os.environ.get("DEBUG", "False").lower() == "true"
-    app.run(host="0.0.0.0", port=port, debug=debug)
+    # Use localhost for local development, 0.0.0.0 for production deployment
+    host = "127.0.0.1" if os.environ.get("PORT") is None else "0.0.0.0"
+    app.run(host=host, port=port, debug=debug)
