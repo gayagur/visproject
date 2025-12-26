@@ -15,7 +15,7 @@ os.environ["DASH_DISABLE_JUPYTER"] = "True"
 # ========================= CONFIG =========================
 CSV_PATH = os.getenv(
     "CAR_CSV_PATH",
-    r"C:\Users\gayag\Desktop\לימודים\שנה ג\ויזואליזציה\פרוייקט ויזו\cars_dataset_cleaned.csv",
+    os.path.join(os.path.dirname(__file__), "cars_dataset_cleaned.csv"),
 )
 YEAR_NOW = 2025
 
@@ -2862,4 +2862,6 @@ def toggle_buyer_methodology(n_clicks, is_open):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 8050))
+    debug = os.environ.get("DEBUG", "False").lower() == "true"
+    app.run(host="0.0.0.0", port=port, debug=debug)

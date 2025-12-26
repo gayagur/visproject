@@ -57,7 +57,7 @@ Premium Car Analytics is a comprehensive dashboard application that provides dee
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd "פרוייקט ויזו"
+   cd "visproject"
    ```
 
 2. **Install dependencies**
@@ -78,7 +78,7 @@ Premium Car Analytics is a comprehensive dashboard application that provides dee
 ## 📁 Project Structure
 
 ```
-פרוייקט ויזו/
+
 │
 ├── vis.py                    # Main application file
 ├── assets/
@@ -148,12 +148,12 @@ The dashboard analyzes:
 
 ### 🎓 Visualization Project - Year 3
 
-| Member | Role |
-|:------:|:----:|
-| 👤 **Team Member 1** | Data Analysis & Visualization |
-| 👤 **Team Member 2** | Frontend Development |
-| 👤 **Team Member 3** | Backend Development |
-| 👤 **Team Member 4** | UI/UX Design |
+| Member |
+|:------:|
+| 👤 **Gaya gur** | 
+| 👤 **Moran shavit** | 
+| 👤 **Tamar hagbi** | 
+| 👤 **Matias Gernik** |
 
 *Please update with actual team member names*
 
@@ -242,4 +242,3 @@ For questions or issues, please contact the development team.
 ⭐ **Star this project if you find it useful!** ⭐
 
 </div>
-
