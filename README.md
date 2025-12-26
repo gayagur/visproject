@@ -56,13 +56,13 @@ Premium Car Analytics is a comprehensive dashboard application that provides dee
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd "visproject"
+   git clone https://github.com/gayagur/visproject.git
+   cd visproject
    ```
 
 2. **Install dependencies**
    ```bash
-   pip install dash dash-bootstrap-components plotly pandas numpy
+   pip install -r requirements.txt
    ```
 
 3. **Run the application**
@@ -78,12 +78,13 @@ Premium Car Analytics is a comprehensive dashboard application that provides dee
 ## 📁 Project Structure
 
 ```
-
+visproject/
 │
 ├── vis.py                    # Main application file
 ├── assets/
 │   └── style.css            # Custom styling
 ├── cars_dataset_cleaned.csv # Main dataset
+├── requirements.txt          # Python dependencies
 └── README.md                # This file
 ```
 
@@ -150,18 +151,10 @@ The dashboard analyzes:
 
 | Member |
 |:------:|
-| 👤 **Gaya gur** | 
-<<<<<<< HEAD
-| 👤 **Moran shavit** | 
-| 👤 **Tamar hagbi** | 
+| 👤 **Gaya Gur** | 
+| 👤 **Moran Shavit** | 
+| 👤 **Tamar Hagbi** | 
 | 👤 **Matias Gernik** |
-=======
-| 👤 **Moram shavit** | 
-| 👤 **Tamar hagbi** | 
-| 👤 **Matias Garnik** |
->>>>>>> 33d33a7697d8d7c1cd841e94884c9a50491a2e2d
-
-*Please update with actual team member names*
 
 </div>
 
@@ -247,9 +240,4 @@ For questions or issues, please contact the development team.
 
 ⭐ **Star this project if you find it useful!** ⭐
 
-<<<<<<< HEAD
 </div>
-=======
-</div>
-
->>>>>>> 33d33a7697d8d7c1cd841e94884c9a50491a2e2d
