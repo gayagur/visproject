@@ -2670,10 +2670,34 @@ def update_groups(ma, ya, ta, mb, yb, tb):
     elif stability_b < stability_a:
         insights.append("higher price stability")
     
+    # Determine winning group
+    winning_group = None
     if insights:
-        insight_text = f"Group {'A' if price_per_km_a < price_per_km_b or stability_a < stability_b else 'B'} shows {', '.join(insights[:2])}."
+        if price_per_km_a < price_per_km_b or stability_a < stability_b:
+            winning_group = "A"
+        else:
+            winning_group = "B"
+    
+    if insights:
+        # Build insight with colored group name
+        group_name_span = html.Span(
+            f"Group {winning_group}",
+            style={
+                "color": COLORS["blue"] if winning_group == "A" else COLORS["purple"],
+                "fontWeight": 700,
+            }
+        )
+        insight_content = [
+            html.Span("💡 ", style={"fontSize": "18px", "marginRight": "8px"}),
+            group_name_span,
+            html.Span(f" shows {', '.join(insights[:2])}.", style={"fontWeight": 500}),
+        ]
+        insight_text_structured = insight_content
     else:
-        insight_text = "Both groups show similar value characteristics."
+        insight_text_structured = [
+            html.Span("💡 ", style={"fontSize": "18px", "marginRight": "8px"}),
+            html.Span("Both groups show similar value characteristics.", style={"fontWeight": 500}),
+        ]
     
     # Compact KPI strip for Group A/B
     group_summary = dbc.Row(
@@ -2714,11 +2738,11 @@ def update_groups(ma, ya, ta, mb, yb, tb):
         ],
     )
     
-    # Comparison insight line - Executive note style
+    # Comparison insight line - Enhanced with icon and colored group
     insight_section = html.Div(
         [
             html.Div(
-                insight_text,
+                insight_text_structured,
                 className="comparison-insight",
             ),
         ],
