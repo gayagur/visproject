@@ -154,7 +154,7 @@ The dashboard analyzes:
 | 👤 **Gaya Gur** | 
 | 👤 **Moran Shavit** | 
 | 👤 **Tamar Hagbi** | 
-| 👤 **Matias Gernik** |
+| 👤 **Matias Guernik** |
 
 </div>
 
