@@ -1186,7 +1186,7 @@ def render_tab(active_tab):
                                     },
                                     children=[
                                         html.Div("👤", style={"fontSize": "36px", "marginBottom": "8px"}),
-                                        html.Div("Matias Gernilk", style={"fontSize": "18px", "fontWeight": 700, "color": "#F9FAFB"}),
+                                        html.Div("Matias Guernilk", style={"fontSize": "18px", "fontWeight": 700, "color": "#F9FAFB"}),
                                     ],
                                 ),
                                 html.Div(
