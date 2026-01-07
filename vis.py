@@ -24,6 +24,7 @@ CSV_PATH = os.getenv(
 )
 YEAR_NOW = 2025
 
+
 # ========================= DATA LOADING =========================
 def load_data(csv_path: str) -> pd.DataFrame:
     df = pd.read_csv(csv_path, low_memory=False)
@@ -88,26 +89,28 @@ YEAR_MIN = int(df["on_road_year"].min())
 YEAR_MAX = int(df["on_road_year"].max())
 
 # ========================= PLOTLY THEME =========================
+# ========================= PLOTLY THEME =========================
 COLORS = {
-    "blue": "#60A5FA",
-    "purple": "#8B5CF6",
-    "cyan": "#06B6D4",
-    "orange": "#F59E0B",
-    "green": "#10B981",
-    "red": "#EF4444",
-    "pink": "#EC4899",
-    "indigo": "#6366F1",
+    "blue": "#3B82F6",  # Bright Royal Blue
+    "yellow": "#EAB308",  # Yellow/Gold
+    "green": "#10B981",  # Emerald
+    "purple": "#A855F7",  # Vivid Purple
+    "red": "#F95858",  # Vermilion
+    "teal": "#06B6D4",  # Cyan-Blue
+    "pink": "#EC4899",  # Pink
+    "orange": "#F97316",  # Vibrant Orange
 }
 
+# Ordered: Blue & Yellow first, then high-contrast alternates
 COLOR_SCALE = [
     COLORS["blue"],
-    COLORS["purple"],
-    COLORS["cyan"],
-    COLORS["orange"],
+    COLORS["yellow"],
     COLORS["green"],
+    COLORS["purple"],
     COLORS["red"],
+    COLORS["orange"],
+    COLORS["teal"],
     COLORS["pink"],
-    COLORS["indigo"],
 ]
 
 car_template = go.layout.Template(
@@ -115,16 +118,19 @@ car_template = go.layout.Template(
         font=dict(family="Inter, system-ui, sans-serif", size=13, color="#F9FAFB"),
         paper_bgcolor="rgba(17, 24, 39, 0.5)",
         plot_bgcolor="rgba(17, 24, 39, 0.3)",
-        margin=dict(l=60, r=40, t=80, b=60),
+        margin=dict(l=160, r=40, t=120, b=60),
         title=dict(
             x=0.5,
+            xref="paper",
             xanchor="center",
-            font=dict(size=20, color="#F9FAFB", family="Inter"),
+            y=0.94,
+            yanchor="top",
+            font=dict(size=24, color="#F9FAFB", family="Inter"),
         ),
         legend=dict(
             orientation="h",
-            yanchor="bottom",
-            y=1.02,
+            yanchor="top",
+            y=1.10,
             xanchor="center",
             x=0.5,
             bgcolor="rgba(17, 24, 39, 0.8)",
@@ -138,6 +144,7 @@ car_template = go.layout.Template(
             linecolor="rgba(75, 85, 99, 0.3)",
             tickcolor="rgba(75, 85, 99, 0.3)",
             color="#9CA3AF",
+            fixedrange=True,
         ),
         yaxis=dict(
             gridcolor="rgba(75, 85, 99, 0.2)",
@@ -145,6 +152,7 @@ car_template = go.layout.Template(
             linecolor="rgba(75, 85, 99, 0.3)",
             tickcolor="rgba(75, 85, 99, 0.3)",
             color="#9CA3AF",
+            fixedrange=True,
         ),
         hoverlabel=dict(
             bgcolor="rgba(17, 24, 39, 0.95)",
@@ -217,6 +225,7 @@ app.index_string = """
 </html>
 """
 
+
 # ========================= KPI CARD =========================
 def kpi_card(label, value, sub, icon_text, gradient="blue-purple"):
     gradients = {
@@ -239,6 +248,7 @@ def kpi_card(label, value, sub, icon_text, gradient="blue-purple"):
             html.Div(sub, className="kpi-sub"),
         ],
     )
+
 
 # ========================= FIGURES =========================
 def fig_donut(counts: pd.Series, title: str, subtitle: str) -> go.Figure:
@@ -276,17 +286,17 @@ def fig_donut(counts: pd.Series, title: str, subtitle: str) -> go.Figure:
 
 
 def fig_smart_buyer_matrix(
-    data: pd.DataFrame,
-    selected_vehicles: list = None,
-    max_price: float = None,
-    min_price: float = None,
-    max_mileage: float = None,
-    country: list = None,
-    transmission: list = None,
-    fuel_type: list = None,
-    owner_count: list = None,
-    year_range: list = None,
-    max_vehicles: int = 12,
+        data: pd.DataFrame,
+        selected_vehicles: list = None,
+        max_price: float = None,
+        min_price: float = None,
+        max_mileage: float = None,
+        country: list = None,
+        transmission: list = None,
+        fuel_type: list = None,
+        owner_count: list = None,
+        year_range: list = None,
+        max_vehicles: int = 12,
 ) -> go.Figure:
     # Smart Buyer Matrix: a bubble scatter of vehicle-level avg mileage vs avg price,
     # with a derived "value score" and uncertainty bands.
@@ -323,7 +333,7 @@ def fig_smart_buyer_matrix(
     if year_range:
         dff = dff[
             (dff["on_road_year"] >= year_range[0]) & (dff["on_road_year"] <= year_range[1])
-        ]
+            ]
 
     # Vehicle selection (or fallback to top N by frequency)
     if selected_vehicles and len(selected_vehicles) > 0:
@@ -358,7 +368,7 @@ def fig_smart_buyer_matrix(
     max_val = vehicle_stats["value_score"].max()
     if max_val > min_val:
         vehicle_stats["value_normalized"] = 100 - (
-            (vehicle_stats["value_score"] - min_val) / (max_val - min_val) * 100
+                (vehicle_stats["value_score"] - min_val) / (max_val - min_val) * 100
         )
     else:
         vehicle_stats["value_normalized"] = 50
@@ -368,7 +378,7 @@ def fig_smart_buyer_matrix(
     max_count = vehicle_stats["count"].max()
     if max_count > min_count:
         vehicle_stats["bubble_size"] = 20 + (
-            (vehicle_stats["count"] - min_count) / (max_count - min_count) * 50
+                (vehicle_stats["count"] - min_count) / (max_count - min_count) * 50
         )
     else:
         vehicle_stats["bubble_size"] = 35
@@ -423,20 +433,21 @@ def fig_smart_buyer_matrix(
                     thickness=2,
                 ),
                 hovertemplate=f"<b style='color:{color};font-size:16px;'>%{{fullData.name}}</b><br>"
-                + f"<b style='color:{color};'>{category}</b><br><br>"
-                + f"<span style='color:{color};'>💰 Avg Price: ₪{row['avg_price']:,.0f}</span><br>"
-                + f"<span style='color:{color};'>🛣️ Avg Mileage: {row['avg_mileage']:,.0f} km</span><br>"
-                + f"<span style='color:{color};'>📊 Available: {row['count']:,} cars</span><br>"
-                + f"<span style='color:{color};'>🎯 Value Score: {color_val:.0f}/100</span><br>"
-                + f"<span style='color:{color};'>💵 Price/1000km: ₪{row['value_score']:.2f}</span><br>"
-                + "<extra></extra>",
+                              + f"<b style='color:{color};'>{category}</b><br><br>"
+                              + f"<span style='color:{color};'>💰 Avg Price: ₪{row['avg_price']:,.0f}</span><br>"
+                              + f"<span style='color:{color};'>🛣️ Avg Mileage: {row['avg_mileage']:,.0f} km</span><br>"
+                              + f"<span style='color:{color};'>📊 Available: {row['count']:,} cars</span><br>"
+                              + f"<span style='color:{color};'>🎯 Value Score: {color_val:.0f}/100</span><br>"
+                              + f"<span style='color:{color};'>💵 Price/1000km: ₪{row['value_score']:.2f}</span><br>"
+                              + "<extra></extra>",
             )
         )
 
     fig.update_layout(
         title=dict(
             text="<b>🎯 Smart Buyer Matrix</b><br>"
-            + f"<span style='font-size:14px;color:#9CA3AF'>Analyzing {len(dff):,} vehicles across {len(vehicle_stats)} models</span>"
+                 + f"<span style='font-size:14px;color:#9CA3AF'>Analyzing {len(dff):,} vehicles across {len(vehicle_stats)} models</span><br>"
+                 + "<span style='font-size:11px;color:#60A5FA;font-weight:normal'>💡 Drag axes to move • Double-click to zoom out</span>"
         ),
         xaxis_title="<b>Average Mileage (km)</b>",
         yaxis_title="<b>Average Price (₪)</b>",
@@ -444,6 +455,10 @@ def fig_smart_buyer_matrix(
         hovermode="closest",
         showlegend=False,
     )
+
+    # --- SPECIFIC UNLOCK FOR THIS CHART ONLY ---
+    fig.update_xaxes(fixedrange=False)
+    fig.update_yaxes(fixedrange=False)
 
     # Return the figure and the list of vehicles displayed
     displayed_vehicles = vehicle_stats["vehicle"].tolist()
@@ -456,7 +471,7 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
     # Only shows deals from vehicles that are displayed in the Smart Buyer Matrix.
 
     dff = data.copy()
-    
+
     # Filter to only vehicles displayed in the matrix
     if displayed_vehicles and len(displayed_vehicles) > 0:
         dff = dff[dff["vehicle"].isin(displayed_vehicles)]
@@ -469,8 +484,9 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
             std_price = model_data["price"].std()
             if std_price > 0:
                 dff.loc[dff["vehicle"] == model, "price_zscore"] = (
-                    dff.loc[dff["vehicle"] == model, "price"] - mean_price
-                ) / std_price
+                                                                           dff.loc[dff[
+                                                                                       "vehicle"] == model, "price"] - mean_price
+                                                                   ) / std_price
 
     # Keep deals that are at least 0.5 std below their model mean
     best_deals = dff[dff["price_zscore"] < -0.5].nsmallest(max_results, "price_zscore")
@@ -510,7 +526,7 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
     for idx, (_, row) in enumerate(best_deals.iterrows()):
         z_norm = z_normalized[idx]
         z_score_neg = -row["price_zscore"]
-        
+
         # Determine color based on normalized z-score
         if z_norm >= 0.75:
             color = "#10B981"  # Dark green - Outstanding
@@ -524,7 +540,7 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
         else:
             color = "#A7F3D0"  # Very light green - Good
             quality = "Good"
-        
+
         # Store row index in the card ID for callback
         card_id = f"deal-card-{idx}"
         cards.append(
@@ -833,6 +849,7 @@ def fig_group_comparison(group_a: pd.DataFrame, group_b: pd.DataFrame):
 
     return fig, metrics_data
 
+
 # ========================= LAYOUT =========================
 app.layout = dbc.Container(
     fluid=True,
@@ -895,17 +912,18 @@ app.layout = dbc.Container(
         ),
 
         html.Div(id="tab-content", style={"marginTop": "24px"}),
-        
+
         # Store for best deals data
         dcc.Store(id="best-deals-store", data={}),
-        
+
         # Modal for vehicle details
         dbc.Modal(
             [
                 dbc.ModalHeader(
                     html.Div(
                         [
-                            html.Div(id="vehicle-modal-title", children="Vehicle Details", className="vehicle-modal-header-wrapper"),
+                            html.Div(id="vehicle-modal-title", children="Vehicle Details",
+                                     className="vehicle-modal-header-wrapper"),
                             html.Button(
                                 "×",
                                 className="vehicle-modal-close",
@@ -914,7 +932,8 @@ app.layout = dbc.Container(
                             ),
                         ],
                         className="vehicle-modal-header",
-                        style={"display": "flex", "justifyContent": "space-between", "alignItems": "flex-start", "width": "100%"},
+                        style={"display": "flex", "justifyContent": "space-between", "alignItems": "flex-start",
+                               "width": "100%"},
                     ),
                     close_button=False,
                 ),
@@ -936,6 +955,7 @@ app.layout = dbc.Container(
         ),
     ],
 )
+
 
 # ========================= CALLBACKS =========================
 @app.callback(
@@ -986,8 +1006,10 @@ def render_tab(active_tab):
                                     },
                                     children=[
                                         html.Div("📊", style={"fontSize": "48px", "marginBottom": "12px"}),
-                                        html.H3("Data Analysis", style={"fontSize": "18px", "fontWeight": 700, "marginBottom": "8px"}),
-                                        html.P("Comprehensive market insights", style={"fontSize": "14px", "color": "#9CA3AF"}),
+                                        html.H3("Data Analysis",
+                                                style={"fontSize": "18px", "fontWeight": 700, "marginBottom": "8px"}),
+                                        html.P("Comprehensive market insights",
+                                               style={"fontSize": "14px", "color": "#9CA3AF"}),
                                     ],
                                 ),
                                 html.Div(
@@ -1000,8 +1022,10 @@ def render_tab(active_tab):
                                     },
                                     children=[
                                         html.Div("🎯", style={"fontSize": "48px", "marginBottom": "12px"}),
-                                        html.H3("Smart Insights", style={"fontSize": "18px", "fontWeight": 700, "marginBottom": "8px"}),
-                                        html.P("AI-powered recommendations", style={"fontSize": "14px", "color": "#9CA3AF"}),
+                                        html.H3("Smart Insights",
+                                                style={"fontSize": "18px", "fontWeight": 700, "marginBottom": "8px"}),
+                                        html.P("AI-powered recommendations",
+                                               style={"fontSize": "14px", "color": "#9CA3AF"}),
                                     ],
                                 ),
                                 html.Div(
@@ -1014,15 +1038,17 @@ def render_tab(active_tab):
                                     },
                                     children=[
                                         html.Div("💡", style={"fontSize": "48px", "marginBottom": "12px"}),
-                                        html.H3("Best Deals", style={"fontSize": "18px", "fontWeight": 700, "marginBottom": "8px"}),
-                                        html.P("Find the perfect vehicle", style={"fontSize": "14px", "color": "#9CA3AF"}),
+                                        html.H3("Best Deals",
+                                                style={"fontSize": "18px", "fontWeight": 700, "marginBottom": "8px"}),
+                                        html.P("Find the perfect vehicle",
+                                               style={"fontSize": "14px", "color": "#9CA3AF"}),
                                     ],
                                 ),
                             ],
                         ),
                     ],
                 ),
-                
+
                 # Features Section
                 dbc.Row(
                     className="g-4 mb-4",
@@ -1034,7 +1060,8 @@ def render_tab(active_tab):
                                 children=[
                                     html.Div(
                                         "🔄 Manufacturers Comparison",
-                                        style={"fontSize": "24px", "fontWeight": 800, "marginBottom": "16px", "color": "#60A5FA"},
+                                        style={"fontSize": "24px", "fontWeight": 800, "marginBottom": "16px",
+                                               "color": "#60A5FA"},
                                     ),
                                     html.P(
                                         "Compare up to 5 different car models side by side. Analyze price depreciation trends, "
@@ -1044,9 +1071,12 @@ def render_tab(active_tab):
                                     ),
                                     html.Ul(
                                         [
-                                            html.Li("Price depreciation analysis", style={"marginBottom": "8px", "color": "#9CA3AF"}),
-                                            html.Li("Mileage impact visualization", style={"marginBottom": "8px", "color": "#9CA3AF"}),
-                                            html.Li("Value retention trends", style={"marginBottom": "8px", "color": "#9CA3AF"}),
+                                            html.Li("Price depreciation analysis",
+                                                    style={"marginBottom": "8px", "color": "#9CA3AF"}),
+                                            html.Li("Mileage impact visualization",
+                                                    style={"marginBottom": "8px", "color": "#9CA3AF"}),
+                                            html.Li("Value retention trends",
+                                                    style={"marginBottom": "8px", "color": "#9CA3AF"}),
                                         ],
                                         style={"marginTop": "20px", "paddingLeft": "20px"},
                                     ),
@@ -1061,7 +1091,8 @@ def render_tab(active_tab):
                                 children=[
                                     html.Div(
                                         "⚖️ Group Comparison",
-                                        style={"fontSize": "24px", "fontWeight": 800, "marginBottom": "16px", "color": "#8B5CF6"},
+                                        style={"fontSize": "24px", "fontWeight": 800, "marginBottom": "16px",
+                                               "color": "#8B5CF6"},
                                     ),
                                     html.P(
                                         "Compare two different vehicle groups based on model, year range, and transmission type. "
@@ -1071,9 +1102,12 @@ def render_tab(active_tab):
                                     ),
                                     html.Ul(
                                         [
-                                            html.Li("Side-by-side comparison", style={"marginBottom": "8px", "color": "#9CA3AF"}),
-                                            html.Li("Price stability analysis", style={"marginBottom": "8px", "color": "#9CA3AF"}),
-                                            html.Li("Value for money metrics", style={"marginBottom": "8px", "color": "#9CA3AF"}),
+                                            html.Li("Side-by-side comparison",
+                                                    style={"marginBottom": "8px", "color": "#9CA3AF"}),
+                                            html.Li("Price stability analysis",
+                                                    style={"marginBottom": "8px", "color": "#9CA3AF"}),
+                                            html.Li("Value for money metrics",
+                                                    style={"marginBottom": "8px", "color": "#9CA3AF"}),
                                         ],
                                         style={"marginTop": "20px", "paddingLeft": "20px"},
                                     ),
@@ -1088,7 +1122,8 @@ def render_tab(active_tab):
                                 children=[
                                     html.Div(
                                         "🛒 Buyer's Guide",
-                                        style={"fontSize": "24px", "fontWeight": 800, "marginBottom": "16px", "color": "#10B981"},
+                                        style={"fontSize": "24px", "fontWeight": 800, "marginBottom": "16px",
+                                               "color": "#10B981"},
                                     ),
                                     html.P(
                                         "Smart Buyer Matrix helps you find the best value deals. Use advanced filters to narrow down "
@@ -1098,9 +1133,12 @@ def render_tab(active_tab):
                                     ),
                                     html.Ul(
                                         [
-                                            html.Li("Smart value scoring", style={"marginBottom": "8px", "color": "#9CA3AF"}),
-                                            html.Li("Advanced filtering options", style={"marginBottom": "8px", "color": "#9CA3AF"}),
-                                            html.Li("Best deals identification", style={"marginBottom": "8px", "color": "#9CA3AF"}),
+                                            html.Li("Smart value scoring",
+                                                    style={"marginBottom": "8px", "color": "#9CA3AF"}),
+                                            html.Li("Advanced filtering options",
+                                                    style={"marginBottom": "8px", "color": "#9CA3AF"}),
+                                            html.Li("Best deals identification",
+                                                    style={"marginBottom": "8px", "color": "#9CA3AF"}),
                                         ],
                                         style={"marginTop": "20px", "paddingLeft": "20px"},
                                     ),
@@ -1110,7 +1148,7 @@ def render_tab(active_tab):
                         ),
                     ],
                 ),
-                
+
                 # Team Section
                 html.Div(
                     className="graph-card",
@@ -1147,7 +1185,8 @@ def render_tab(active_tab):
                                     },
                                     children=[
                                         html.Div("👤", style={"fontSize": "36px", "marginBottom": "8px"}),
-                                        html.Div("Gaya Gur", style={"fontSize": "18px", "fontWeight": 700, "color": "#F9FAFB"}),
+                                        html.Div("Gaya Gur",
+                                                 style={"fontSize": "18px", "fontWeight": 700, "color": "#F9FAFB"}),
                                     ],
                                 ),
                                 html.Div(
@@ -1160,7 +1199,8 @@ def render_tab(active_tab):
                                     },
                                     children=[
                                         html.Div("👤", style={"fontSize": "36px", "marginBottom": "8px"}),
-                                        html.Div("Moran Shavit", style={"fontSize": "18px", "fontWeight": 700, "color": "#F9FAFB"}),
+                                        html.Div("Moran Shavit",
+                                                 style={"fontSize": "18px", "fontWeight": 700, "color": "#F9FAFB"}),
                                     ],
                                 ),
                                 html.Div(
@@ -1173,7 +1213,8 @@ def render_tab(active_tab):
                                     },
                                     children=[
                                         html.Div("👤", style={"fontSize": "36px", "marginBottom": "8px"}),
-                                        html.Div("Matias Gernilk", style={"fontSize": "18px", "fontWeight": 700, "color": "#F9FAFB"}),
+                                        html.Div("Matias Guernilk",
+                                                 style={"fontSize": "18px", "fontWeight": 700, "color": "#F9FAFB"}),
                                     ],
                                 ),
                                 html.Div(
@@ -1186,7 +1227,8 @@ def render_tab(active_tab):
                                     },
                                     children=[
                                         html.Div("👤", style={"fontSize": "36px", "marginBottom": "8px"}),
-                                        html.Div("Tamar Hagbi", style={"fontSize": "18px", "fontWeight": 700, "color": "#F9FAFB"}),
+                                        html.Div("Tamar Hagbi",
+                                                 style={"fontSize": "18px", "fontWeight": 700, "color": "#F9FAFB"}),
                                     ],
                                 ),
                             ],
@@ -1195,7 +1237,7 @@ def render_tab(active_tab):
                 ),
             ]
         )
-    
+
     if active_tab == "tab-market":
         return html.Div(
             [
@@ -1252,6 +1294,16 @@ def render_tab(active_tab):
         )
 
     if active_tab == "tab-model":
+        # 1. Get Top 15 Manufacturers
+        top_15 = df["manufacturer"].value_counts().head(15).index.tolist()
+
+        # 2. Get the rest and sort alphabetically
+        all_manus = df["manufacturer"].dropna().unique().tolist()
+        rest_sorted = sorted([m for m in all_manus if m not in top_15])
+
+        # 3. Combine
+        final_manufacturer_order = top_15 + rest_sorted
+
         return dbc.Row(
             className="g-4",
             children=[
@@ -1261,17 +1313,24 @@ def render_tab(active_tab):
                         children=[
                             html.Div(
                                 "🔄 Model Comparison",
-                                style={"fontWeight": 900, "marginBottom": "12px", "fontSize": "18px"},
+                                style={
+                                    "fontWeight": 900,
+                                    "marginBottom": "12px",
+                                    "fontSize": "18px",
+                                    "textAlign": "center",
+                                    "width": "100%",
+                                    "display": "block"
+                                },
                             ),
                             html.Div(
                                 "Select up to 5 manufacturers for optimal visualization",
                                 className="small-muted",
-                                style={"marginBottom": "16px"},
+                                style={"marginBottom": "16px", "textAlign": "center", "width": "100%"},
                             ),
                             dcc.Dropdown(
                                 id="model-selected",
-                                options=[{"label": m, "value": m} for m in sorted(df["manufacturer"].unique())],
-                                value=sorted(df["manufacturer"].unique())[:3] if len(df) > 0 else [],
+                                options=[{"label": m, "value": m} for m in final_manufacturer_order],
+                                value=final_manufacturer_order[:3] if len(df) > 0 else [],
                                 multi=True,
                             ),
                             html.Hr(style={"opacity": 0.2, "margin": "20px 0"}),
@@ -1520,7 +1579,8 @@ def render_tab(active_tab):
                                         html.Label("Transmission Type"),
                                         dcc.Dropdown(
                                             id="buyer-transmission",
-                                            options=[{"label": t, "value": t} for t in sorted(df["transmission"].unique())],
+                                            options=[{"label": t, "value": t} for t in
+                                                     sorted(df["transmission"].unique())],
                                             value=[],
                                             multi=True,
                                             placeholder="Select transmission types",
@@ -1529,7 +1589,8 @@ def render_tab(active_tab):
                                         html.Label("Fuel Type"),
                                         dcc.Dropdown(
                                             id="buyer-fuel",
-                                            options=[{"label": f, "value": f} for f in sorted(df["fuel_type"].unique())],
+                                            options=[{"label": f, "value": f} for f in
+                                                     sorted(df["fuel_type"].unique())],
                                             value=[],
                                             multi=True,
                                             placeholder="Select fuel types",
@@ -1538,7 +1599,8 @@ def render_tab(active_tab):
                                         html.Label("מספר ידיים (Owner Count)"),
                                         dcc.Dropdown(
                                             id="buyer-owner-count",
-                                            options=[{"label": str(int(o)), "value": int(o)} for o in sorted(df["owner_count"].dropna().unique()) if pd.notna(o)],
+                                            options=[{"label": str(int(o)), "value": int(o)} for o in
+                                                     sorted(df["owner_count"].dropna().unique()) if pd.notna(o)],
                                             value=[],
                                             multi=True,
                                             placeholder="Select owner count",
@@ -1566,10 +1628,14 @@ def render_tab(active_tab):
                                             value=[0, int(df["price"].quantile(0.95))],
                                             marks={
                                                 0: "₪0",
-                                                int(df["price"].quantile(0.25)): f"₪{int(df['price'].quantile(0.25) / 1000)}K",
-                                                int(df["price"].quantile(0.5)): f"₪{int(df['price'].quantile(0.5) / 1000)}K",
-                                                int(df["price"].quantile(0.75)): f"₪{int(df['price'].quantile(0.75) / 1000)}K",
-                                                int(df["price"].quantile(0.95)): f"₪{int(df['price'].quantile(0.95) / 1000)}K",
+                                                int(df["price"].quantile(
+                                                    0.25)): f"₪{int(df['price'].quantile(0.25) / 1000)}K",
+                                                int(df["price"].quantile(
+                                                    0.5)): f"₪{int(df['price'].quantile(0.5) / 1000)}K",
+                                                int(df["price"].quantile(
+                                                    0.75)): f"₪{int(df['price'].quantile(0.75) / 1000)}K",
+                                                int(df["price"].quantile(
+                                                    0.95)): f"₪{int(df['price'].quantile(0.95) / 1000)}K",
                                             },
                                             tooltip={"placement": "bottom", "always_visible": False},
                                         ),
@@ -1583,8 +1649,10 @@ def render_tab(active_tab):
                                             value=int(df["mileage"].quantile(0.95)),
                                             marks={
                                                 0: "0",
-                                                int(df["mileage"].quantile(0.5)): f"{int(df['mileage'].quantile(0.5) / 1000)}K",
-                                                int(df["mileage"].quantile(0.95)): f"{int(df['mileage'].quantile(0.95) / 1000)}K",
+                                                int(df["mileage"].quantile(
+                                                    0.5)): f"{int(df['mileage'].quantile(0.5) / 1000)}K",
+                                                int(df["mileage"].quantile(
+                                                    0.95)): f"{int(df['mileage'].quantile(0.95) / 1000)}K",
                                             },
                                             tooltip={"placement": "bottom", "always_visible": False},
                                         ),
@@ -1630,16 +1698,21 @@ def render_tab(active_tab):
                                         html.Div(style={"height": "20px"}),
                                         html.Div(
                                             [
-                                                html.H6("💡 Quick Tips", style={"fontWeight": 700, "marginBottom": "12px"}),
+                                                html.H6("💡 Quick Tips",
+                                                        style={"fontWeight": 700, "marginBottom": "12px"}),
                                                 html.Ul(
                                                     [
-                                                        html.Li("🟢 Green = Best value", className="small-muted", style={"marginBottom": "4px", "fontSize": "12px"}),
-                                                        html.Li("⭕ Larger = More available", className="small-muted", style={"marginBottom": "4px", "fontSize": "12px"}),
-                                                        html.Li("📊 Hover for details", className="small-muted", style={"marginBottom": "4px", "fontSize": "12px"}),
+                                                        html.Li("🟢 Green = Best value", className="small-muted",
+                                                                style={"marginBottom": "4px", "fontSize": "12px"}),
+                                                        html.Li("⭕ Larger = More available", className="small-muted",
+                                                                style={"marginBottom": "4px", "fontSize": "12px"}),
+                                                        html.Li("📊 Hover for details", className="small-muted",
+                                                                style={"marginBottom": "4px", "fontSize": "12px"}),
                                                         html.Li(
                                                             "🎯 Target: Large green bubbles!",
                                                             className="small-muted",
-                                                            style={"marginBottom": "4px", "fontWeight": 700, "color": COLORS["green"], "fontSize": "12px"},
+                                                            style={"marginBottom": "4px", "fontWeight": 700,
+                                                                   "color": COLORS["green"], "fontSize": "12px"},
                                                         ),
                                                     ],
                                                     style={"paddingLeft": "20px"},
@@ -1710,6 +1783,13 @@ def render_tab(active_tab):
         )
 
     # Default: Group Comparison tab
+
+    # 1. Calculate Model Order: Top 20 Popular -> Then Alphabetical
+    top_models = df["vehicle"].value_counts().head(20).index.tolist()
+    all_models = df["vehicle"].dropna().unique().tolist()
+    rest_models = sorted([m for m in all_models if m not in top_models])
+    final_model_order = top_models + rest_models
+
     return dbc.Row(
         className="g-4",
         children=[
@@ -1724,13 +1804,16 @@ def render_tab(active_tab):
                                 "marginBottom": "16px",
                                 "fontSize": "16px",
                                 "color": COLORS["blue"],
+                                "textAlign": "center",
+                                "width": "100%",
+                                "display": "block"
                             },
                         ),
                         html.Label("Model"),
                         dcc.Dropdown(
                             id="ga-model",
-                            options=[{"label": t, "value": t} for t in sorted(df["vehicle"].unique())],
-                            value=sorted(df["vehicle"].unique())[0] if len(df) else None,
+                            options=[{"label": t, "value": t} for t in final_model_order],
+                            value=final_model_order[0] if len(df) else None,
                             clearable=False,
                         ),
                         html.Div(style={"height": "12px"}),
@@ -1749,11 +1832,14 @@ def render_tab(active_tab):
                         dcc.Dropdown(
                             id="ga-trans",
                             options=[
-                                {"label": t, "value": t} 
-                                for t in sorted(df["transmission"].unique()) 
-                                if any(keyword in str(t) for keyword in ["אוטומטי", "ידני", "automatic", "manual", "אוטומט"])
+                                {"label": t, "value": t}
+                                for t in sorted(df["transmission"].unique())
+                                if any(keyword in str(t) for keyword in
+                                       ["אוטומטי", "ידני", "automatic", "manual", "אוטומט"])
                             ],
-                            value=next((t for t in sorted(df["transmission"].unique()) if any(keyword in str(t) for keyword in ["אוטומטי", "automatic", "אוטומט"])), sorted(df["transmission"].unique())[0] if len(df) > 0 else None),
+                            value=next((t for t in sorted(df["transmission"].unique()) if
+                                        any(keyword in str(t) for keyword in ["אוטומטי", "automatic", "אוטומט"])),
+                                       sorted(df["transmission"].unique())[0] if len(df) > 0 else None),
                             clearable=False,
                         ),
                     ],
@@ -1771,13 +1857,16 @@ def render_tab(active_tab):
                                 "marginBottom": "16px",
                                 "fontSize": "16px",
                                 "color": COLORS["purple"],
+                                "textAlign": "center",
+                                "width": "100%",
+                                "display": "block"
                             },
                         ),
                         html.Label("Model"),
                         dcc.Dropdown(
                             id="gb-model",
-                            options=[{"label": t, "value": t} for t in sorted(df["vehicle"].unique())],
-                            value=sorted(df["vehicle"].unique())[0] if len(df) else None,
+                            options=[{"label": t, "value": t} for t in final_model_order],
+                            value=final_model_order[0] if len(df) else None,
                             clearable=False,
                         ),
                         html.Div(style={"height": "12px"}),
@@ -1796,11 +1885,14 @@ def render_tab(active_tab):
                         dcc.Dropdown(
                             id="gb-trans",
                             options=[
-                                {"label": t, "value": t} 
-                                for t in sorted(df["transmission"].unique()) 
-                                if any(keyword in str(t) for keyword in ["אוטומטי", "ידני", "automatic", "manual", "אוטומט"])
+                                {"label": t, "value": t}
+                                for t in sorted(df["transmission"].unique())
+                                if any(keyword in str(t) for keyword in
+                                       ["אוטומטי", "ידני", "automatic", "manual", "אוטומט"])
                             ],
-                            value=next((t for t in sorted(df["transmission"].unique()) if any(keyword in str(t) for keyword in ["אוטומטי", "automatic", "אוטומט"])), sorted(df["transmission"].unique())[0] if len(df) > 0 else None),
+                            value=next((t for t in sorted(df["transmission"].unique()) if
+                                        any(keyword in str(t) for keyword in ["אוטומטי", "automatic", "אוטומט"])),
+                                       sorted(df["transmission"].unique())[0] if len(df) > 0 else None),
                             clearable=False,
                         ),
                     ],
@@ -1848,7 +1940,8 @@ def update_market(feature, country):
         children=[
             html.Div([html.Span("📊 Total Listings: ", style={"fontWeight": 600}), html.B(f"{len(dff):,}")]),
             html.Div([html.Span("💰 Avg Price: ", style={"fontWeight": 600}), html.B(f"₪{dff['price'].mean():,.0f}")]),
-            html.Div([html.Span("🛣️ Avg Mileage: ", style={"fontWeight": 600}), html.B(f"{dff['mileage'].mean():,.0f} km")]),
+            html.Div(
+                [html.Span("🛣️ Avg Mileage: ", style={"fontWeight": 600}), html.B(f"{dff['mileage'].mean():,.0f} km")]),
         ],
     )
 
@@ -1897,13 +1990,14 @@ def reset_filters(n_clicks):
     Input("buyer-year-range", "value"),
     Input("buyer-max-vehicles", "value"),
 )
-def update_buyer_guide(vehicles, price_range, max_mileage, country, transmission, fuel, owner_count, year_range, max_vehicles):
+def update_buyer_guide(vehicles, price_range, max_mileage, country, transmission, fuel, owner_count, year_range,
+                       max_vehicles):
     # Check if any filters are active (user has made selections)
     price_max_default = int(df["price"].quantile(0.95))
     mileage_max_default = int(df["mileage"].quantile(0.95))
     year_min_default = YEAR_MIN
     year_max_default = YEAR_MAX
-    
+
     has_price_filter = price_range[0] > 0 or price_range[1] < price_max_default
     has_mileage_filter = max_mileage < mileage_max_default
     has_country_filter = country and len(country) > 0
@@ -1912,11 +2006,11 @@ def update_buyer_guide(vehicles, price_range, max_mileage, country, transmission
     has_owner_filter = owner_count and len(owner_count) > 0
     has_year_filter = year_range and (year_range[0] > year_min_default or year_range[1] < year_max_default)
     has_vehicle_filter = vehicles and len(vehicles) > 0
-    
-    has_any_filter = (has_price_filter or has_mileage_filter or has_country_filter or 
-                      has_transmission_filter or has_fuel_filter or has_owner_filter or 
+
+    has_any_filter = (has_price_filter or has_mileage_filter or has_country_filter or
+                      has_transmission_filter or has_fuel_filter or has_owner_filter or
                       has_year_filter or has_vehicle_filter)
-    
+
     # Only apply filters if user has made selections
     min_price = price_range[0] if (has_price_filter and price_range[0] > 0) else None
     max_price = price_range[1] if has_price_filter else None
@@ -1959,17 +2053,18 @@ def update_buyer_guide(vehicles, price_range, max_mileage, country, transmission
         dff_deals = dff_deals[dff_deals["owner_count"].isin(owner_count_filtered)]
     if year_range_filtered:
         dff_deals = dff_deals[
-            (dff_deals["on_road_year"] >= year_range_filtered[0]) & (dff_deals["on_road_year"] <= year_range_filtered[1])
-        ]
+            (dff_deals["on_road_year"] >= year_range_filtered[0]) & (
+                        dff_deals["on_road_year"] <= year_range_filtered[1])
+            ]
 
     # Only show best deals from vehicles displayed in the matrix
     deals_cards = create_best_deals_cards(dff_deals, displayed_vehicles=displayed_vehicles)
-    
+
     # Store best deals data for modal
     dff_deals_filtered = dff_deals.copy()
     if displayed_vehicles and len(displayed_vehicles) > 0:
         dff_deals_filtered = dff_deals_filtered[dff_deals_filtered["vehicle"].isin(displayed_vehicles)]
-    
+
     # Calculate z-scores for best deals
     dff_deals_filtered["price_zscore"] = np.nan
     for model in dff_deals_filtered["vehicle"].unique():
@@ -1979,15 +2074,17 @@ def update_buyer_guide(vehicles, price_range, max_mileage, country, transmission
             std_price = model_data["price"].std()
             if std_price > 0:
                 dff_deals_filtered.loc[dff_deals_filtered["vehicle"] == model, "price_zscore"] = (
-                    dff_deals_filtered.loc[dff_deals_filtered["vehicle"] == model, "price"] - mean_price
-                ) / std_price
-    
+                                                                                                         dff_deals_filtered.loc[
+                                                                                                             dff_deals_filtered[
+                                                                                                                 "vehicle"] == model, "price"] - mean_price
+                                                                                                 ) / std_price
+
     best_deals_data = dff_deals_filtered[dff_deals_filtered["price_zscore"] < -0.5].nsmallest(10, "price_zscore")
     best_deals_data = best_deals_data.sort_values("price_zscore")
-    
+
     # Convert to dict for storage
     deals_store_data = best_deals_data.to_dict("records") if len(best_deals_data) > 0 else {}
-    
+
     return matrix_fig, deals_cards, deals_store_data
 
 
@@ -2005,45 +2102,45 @@ def open_vehicle_modal(n_clicks_list, close_clicks, deals_data, is_open):
     ctx = callback_context
     if not ctx.triggered:
         return False, "Vehicle Details", html.Div()
-    
+
     # Handle close button
     triggered_id = ctx.triggered[0]["prop_id"]
     if "vehicle-modal-close-btn" in triggered_id:
         return False, "Vehicle Details", html.Div()
-    
+
     if not deals_data:
         return is_open, "Vehicle Details", html.Div()
-    
+
     # Find which card was clicked
     if "deal-card" not in triggered_id or not n_clicks_list:
         return is_open, "Vehicle Details", html.Div()
-    
+
     # Find the index of the clicked card
     card_index = None
     for i, n_clicks in enumerate(n_clicks_list):
         if n_clicks and n_clicks > 0:
             card_index = i
             break
-    
+
     if card_index is None or card_index >= len(deals_data) or not deals_data:
         return is_open, "Vehicle Details", html.Div()
-    
+
     vehicle_data = deals_data[card_index]
-    
+
     # Extract values with formatters
     def get_value(field, formatter=None):
         value = vehicle_data.get(field)
         if pd.notna(value) and value is not None:
             return formatter(value) if formatter else str(value)
         return "N/A"
-    
+
     # A) Modal Header - Title and subtitle
     vehicle_name = vehicle_data.get('vehicle', 'Unknown Vehicle')
     year = get_value('on_road_year', lambda x: str(int(x)))
     mileage = get_value('mileage', lambda x: f"{x:,.0f} km")
     transmission = get_value('transmission')
     fuel = get_value('fuel_type')
-    
+
     modal_title = html.Div(
         [
             html.Div(
@@ -2072,11 +2169,11 @@ def open_vehicle_modal(n_clicks_list, close_clicks, deals_data, is_open):
         ],
         className="vehicle-modal-header-content",
     )
-    
+
     # B) Hero KPI Row (4 compact KPIs)
     price = get_value('price', lambda x: f"₪{x:,.0f}")
     owners = get_value('owner_count', lambda x: f"{int(x)} ידיים")
-    
+
     kpi_row = html.Div(
         [
             html.Div(
@@ -2130,7 +2227,7 @@ def open_vehicle_modal(n_clicks_list, close_clicks, deals_data, is_open):
         ],
         className="vehicle-kpi-row",
     )
-    
+
     # C) Details Section (two-column layout)
     # Left column: Vehicle Specs
     specs_rows = []
@@ -2142,7 +2239,7 @@ def open_vehicle_modal(n_clicks_list, close_clicks, deals_data, is_open):
         ("color", "Color"),
         ("manufacturer", "Manufacturer"),
     ]
-    
+
     for field, label in spec_fields:
         value = get_value(field)
         if value != "N/A":
@@ -2155,10 +2252,10 @@ def open_vehicle_modal(n_clicks_list, close_clicks, deals_data, is_open):
                     className="detail-row",
                 )
             )
-    
+
     # Right column: Listing & Context
     context_rows = []
-    
+
     # Country
     country = get_value('country')
     if country != "N/A":
@@ -2171,11 +2268,11 @@ def open_vehicle_modal(n_clicks_list, close_clicks, deals_data, is_open):
                 className="detail-row",
             )
         )
-    
+
     # Additional fields
     additional_fields = set(vehicle_data.keys()) - {
-        "price", "mileage", "on_road_year", "owner_count", "transmission", 
-        "fuel_type", "body_type", "drive_type", "color", "manufacturer", 
+        "price", "mileage", "on_road_year", "owner_count", "transmission",
+        "fuel_type", "body_type", "drive_type", "color", "manufacturer",
         "country", "url", "vehicle", "price_zscore"
     }
     for field in sorted(additional_fields):
@@ -2190,14 +2287,14 @@ def open_vehicle_modal(n_clicks_list, close_clicks, deals_data, is_open):
                     className="detail-row",
                 )
             )
-    
+
     # URL handling
     url_value = None
     if "url" in vehicle_data and pd.notna(vehicle_data.get("url")) and str(vehicle_data.get("url")).strip():
         url_value = str(vehicle_data.get("url")).strip()
         if not url_value.startswith(("http://", "https://")):
             url_value = "https://" + url_value
-    
+
     # D) Primary CTA Button
     cta_button = None
     if url_value:
@@ -2208,7 +2305,7 @@ def open_vehicle_modal(n_clicks_list, close_clicks, deals_data, is_open):
             rel="noopener noreferrer",
             className="vehicle-cta-button",
         )
-    
+
     # Build two-column layout
     details_section = html.Div(
         [
@@ -2230,7 +2327,7 @@ def open_vehicle_modal(n_clicks_list, close_clicks, deals_data, is_open):
         ],
         className="vehicle-details-grid",
     )
-    
+
     # Combine all sections
     modal_body = html.Div(
         [
@@ -2239,7 +2336,7 @@ def open_vehicle_modal(n_clicks_list, close_clicks, deals_data, is_open):
         ],
         className="vehicle-modal-body-content",
     )
-    
+
     return True, modal_title, modal_body
 
 
@@ -2341,10 +2438,12 @@ def update_model(manufacturers):
                                             [
                                                 html.Div(
                                                     [
-                                                        html.Span(icon, style={"fontSize": "24px", "marginRight": "12px"}),
+                                                        html.Span(icon,
+                                                                  style={"fontSize": "24px", "marginRight": "12px"}),
                                                         html.Span(
                                                             manufacturer,
-                                                            style={"fontWeight": 900, "fontSize": "18px", "color": color},
+                                                            style={"fontWeight": 900, "fontSize": "18px",
+                                                                   "color": color},
                                                         ),
                                                     ],
                                                     style={"marginBottom": "12px"},
@@ -2353,11 +2452,13 @@ def update_model(manufacturers):
                                                     [
                                                         html.Span(
                                                             "Depreciation Trend: ",
-                                                            style={"color": "#9CA3AF", "fontSize": "13px", "fontWeight": 600},
+                                                            style={"color": "#9CA3AF", "fontSize": "13px",
+                                                                   "fontWeight": 600},
                                                         ),
                                                         html.Span(
                                                             sentiment,
-                                                            style={"color": color, "fontSize": "13px", "fontWeight": 700},
+                                                            style={"color": color, "fontSize": "13px",
+                                                                   "fontWeight": 700},
                                                         ),
                                                     ]
                                                 ),
@@ -2435,7 +2536,8 @@ def update_model(manufacturers):
                                                     ),
                                                     html.Div(
                                                         f"₪{data_['first_price']:,.0f}",
-                                                        style={"fontSize": "16px", "fontWeight": 800, "color": "#F9FAFB"},
+                                                        style={"fontSize": "16px", "fontWeight": 800,
+                                                               "color": "#F9FAFB"},
                                                     ),
                                                 ]
                                             ),
@@ -2456,7 +2558,8 @@ def update_model(manufacturers):
                                                     ),
                                                     html.Div(
                                                         f"₪{data_['last_price']:,.0f}",
-                                                        style={"fontSize": "16px", "fontWeight": 800, "color": "#F9FAFB"},
+                                                        style={"fontSize": "16px", "fontWeight": 800,
+                                                               "color": "#F9FAFB"},
                                                     ),
                                                 ]
                                             ),
@@ -2543,7 +2646,8 @@ def update_model(manufacturers):
                                             style={"fontWeight": 800, "marginBottom": "12px", "color": "#60A5FA"},
                                         ),
                                         html.P(
-                                            ["The depreciation percentage is calculated using a robust statistical approach:"],
+                                            [
+                                                "The depreciation percentage is calculated using a robust statistical approach:"],
                                             style={"marginBottom": "12px", "fontSize": "13px"},
                                         ),
                                         html.Ol(
@@ -2648,7 +2752,7 @@ def update_groups(ma, ya, ta, mb, yb, tb):
         return fig, dbc.Alert("⚠️ One or both groups have no data. Please adjust your filter criteria.", color="danger")
 
     fig, metrics_data = fig_group_comparison(group_a, group_b)
-    
+
     # Determine which group is better for each metric (lower is better for Price per KM and Price Stability)
     def get_advantage(metric_name, val_a, val_b):
         if "Price per KM" in metric_name or "Price Stability" in metric_name:
@@ -2657,24 +2761,24 @@ def update_groups(ma, ya, ta, mb, yb, tb):
         else:
             # For Avg Mileage and Avg Price, don't highlight advantage (context-dependent)
             return "Tie"
-    
+
     # Generate comparison insight
     price_per_km_a = metrics_data['Price per KM'][0]
     price_per_km_b = metrics_data['Price per KM'][1]
     stability_a = metrics_data['Price Stability'][0]
     stability_b = metrics_data['Price Stability'][1]
-    
+
     insights = []
     if price_per_km_a < price_per_km_b:
         insights.append("better value per km")
     elif price_per_km_b < price_per_km_a:
         insights.append("better value per km")
-    
+
     if stability_a < stability_b:
         insights.append("higher price stability")
     elif stability_b < stability_a:
         insights.append("higher price stability")
-    
+
     # Determine winning group
     winning_group = None
     if insights:
@@ -2682,7 +2786,7 @@ def update_groups(ma, ya, ta, mb, yb, tb):
             winning_group = "A"
         else:
             winning_group = "B"
-    
+
     if insights:
         # Build insight with colored group name
         group_name_span = html.Span(
@@ -2703,7 +2807,7 @@ def update_groups(ma, ya, ta, mb, yb, tb):
             html.Span("💡 ", style={"fontSize": "18px", "marginRight": "8px"}),
             html.Span("Both groups show similar value characteristics.", style={"fontWeight": 500}),
         ]
-    
+
     # Compact KPI strip for Group A/B
     group_summary = dbc.Row(
         className="g-3 mb-4",
@@ -2711,7 +2815,8 @@ def update_groups(ma, ya, ta, mb, yb, tb):
             dbc.Col(
                 html.Div(
                     [
-                        html.Div("A", className="group-label-badge", style={"background": "rgba(91, 155, 213, 0.2)", "color": COLORS["blue"]}),
+                        html.Div("A", className="group-label-badge",
+                                 style={"background": "rgba(91, 155, 213, 0.2)", "color": COLORS["blue"]}),
                         html.Div(
                             [
                                 html.Div(ma[:30] + ("..." if len(ma) > 30 else ""), className="group-name"),
@@ -2727,7 +2832,8 @@ def update_groups(ma, ya, ta, mb, yb, tb):
             dbc.Col(
                 html.Div(
                     [
-                        html.Div("B", className="group-label-badge", style={"background": "rgba(139, 92, 246, 0.2)", "color": COLORS["purple"]}),
+                        html.Div("B", className="group-label-badge",
+                                 style={"background": "rgba(139, 92, 246, 0.2)", "color": COLORS["purple"]}),
                         html.Div(
                             [
                                 html.Div(mb[:30] + ("..." if len(mb) > 30 else ""), className="group-name"),
@@ -2742,7 +2848,7 @@ def update_groups(ma, ya, ta, mb, yb, tb):
             ),
         ],
     )
-    
+
     # Comparison insight line - Enhanced with icon and colored group
     insight_section = html.Div(
         [
@@ -2753,7 +2859,7 @@ def update_groups(ma, ya, ta, mb, yb, tb):
         ],
         className="comparison-insight-container",
     )
-    
+
     # Comparison table
     metric_rows = []
     metric_labels = {
@@ -2762,12 +2868,12 @@ def update_groups(ma, ya, ta, mb, yb, tb):
         "Avg Mileage": "Avg Mileage",
         "Avg Price": "Avg Price",
     }
-    
+
     for metric_key, metric_label in metric_labels.items():
         val_a = metrics_data[metric_key][0]
         val_b = metrics_data[metric_key][1]
         advantage = get_advantage(metric_key, val_a, val_b)
-        
+
         # Format values
         if "KM" in metric_key:
             formatted_a = f"₪{val_a:.2f}"
@@ -2781,7 +2887,7 @@ def update_groups(ma, ya, ta, mb, yb, tb):
         else:
             formatted_a = f"₪{val_a:,.0f}"
             formatted_b = f"₪{val_b:,.0f}"
-        
+
         # Apply subtle emphasis to better value (typographic only)
         value_a_class = "comparison-metric-value"
         value_b_class = "comparison-metric-value"
@@ -2789,7 +2895,7 @@ def update_groups(ma, ya, ta, mb, yb, tb):
             value_a_class = "comparison-metric-value comparison-metric-emphasized"
         elif advantage == "B":
             value_b_class = "comparison-metric-value comparison-metric-emphasized"
-        
+
         metric_rows.append(
             html.Div(
                 [
@@ -2806,7 +2912,7 @@ def update_groups(ma, ya, ta, mb, yb, tb):
                 className="comparison-table-row",
             )
         )
-    
+
     comparison_table = html.Div(
         [
             html.Div(
@@ -2821,7 +2927,7 @@ def update_groups(ma, ya, ta, mb, yb, tb):
         ],
         className="comparison-table",
     )
-    
+
     detail = dbc.Row(
         className="g-4",
         children=[
@@ -2871,4 +2977,4 @@ if __name__ == "__main__":
     debug = os.environ.get("DEBUG", "False").lower() == "true"
     # Use localhost for local development, 0.0.0.0 for production deployment
     host = "127.0.0.1" if os.environ.get("PORT") is None else "0.0.0.0"
-    app.run(host=host, port=port, debug=debug)
+    app.run(host=host, port=port, debug=True)
