@@ -89,28 +89,31 @@ YEAR_MIN = int(df["on_road_year"].min())
 YEAR_MAX = int(df["on_road_year"].max())
 
 # ========================= PLOTLY THEME =========================
-# ========================= PLOTLY THEME =========================
 COLORS = {
-    "blue": "#3B82F6",  # Bright Royal Blue
-    "yellow": "#EAB308",  # Yellow/Gold
-    "green": "#10B981",  # Emerald
-    "purple": "#A855F7",  # Vivid Purple
-    "red": "#F95858",  # Vermilion
-    "teal": "#06B6D4",  # Cyan-Blue
-    "pink": "#EC4899",  # Pink
-    "orange": "#F97316",  # Vibrant Orange
+    "cyan":    "#22D3EE",  # 1. Electric Cyan
+    "orange":  "#FB923C",  # 2. Bright Tangerine (High contrast vs Cyan)
+    "purple":  "#C084FC",  # 3. Bright Lavender
+    "lime":    "#D9F99D",  # 4. Acid Green
+    "indigo":  "#A5B4FC",  # 5. Periwinkle (Lightened for dark bg)
+    "magenta": "#F472B6",  # 6. Hot Pink
+    "teal":    "#5EEAD4",  # 7. Mint (Distinct from Cyan)
+    "blue":    "#60A5FA",  # 8. Sky Blue (Distinct from Indigo)
+
+    # --- STATUS COLORS (Restored to fix the Crash) ---
+    "green":   "#10B981",  # Restored for "Excellent Retention"
+    "yellow":  "#EAB308",  # Restored for "Normal Depreciation"
+    "red":     "#EF4444",  # Restored for "Severe Depreciation"
 }
 
-# Ordered: Blue & Yellow first, then high-contrast alternates
 COLOR_SCALE = [
-    COLORS["blue"],
-    COLORS["yellow"],
-    COLORS["green"],
-    COLORS["purple"],
-    COLORS["red"],
+    COLORS["cyan"],
     COLORS["orange"],
+    COLORS["purple"],
+    COLORS["lime"],
+    COLORS["indigo"],
+    COLORS["magenta"],
     COLORS["teal"],
-    COLORS["pink"],
+    COLORS["blue"],
 ]
 
 car_template = go.layout.Template(
@@ -737,7 +740,8 @@ def fig_price_depreciation(manufacturers: list[str], data: pd.DataFrame) -> tupl
             )
         )
 
-        # Depreciation estimate: compare average price of lowest-mileage 20% vs highest-mileage 20%
+        # --- UPDATED DEPRECIATION LOGIC START ---
+        # Compare average price of lowest-mileage 20% vs highest-mileage 20%
         raw_manufacturer_data = dff[dff["manufacturer"] == manufacturer].copy()
         if len(raw_manufacturer_data) >= 5:
             sorted_data = raw_manufacturer_data.sort_values("mileage")
@@ -745,18 +749,43 @@ def fig_price_depreciation(manufacturers: list[str], data: pd.DataFrame) -> tupl
             bottom_20pct = sorted_data.head(max(3, int(n * 0.2)))
             top_20pct = sorted_data.tail(max(3, int(n * 0.2)))
 
+            # 1. Calculate Prices
             low_mileage_price = bottom_20pct["price"].mean()
             high_mileage_price = top_20pct["price"].mean()
 
-            if low_mileage_price > 0:
-                depreciation_pct = ((low_mileage_price - high_mileage_price) / low_mileage_price) * 100
+            # 2. Calculate Mileages (New)
+            low_mileage_avg = bottom_20pct["mileage"].mean()
+            high_mileage_avg = top_20pct["mileage"].mean()
+            
+            # Calculate the gap in usage
+            mileage_diff = high_mileage_avg - low_mileage_avg
+
+            # Calculate normalized depreciation if valid
+            if low_mileage_price > 0 and mileage_diff > 5000:
+                # A) Total percentage drop
+                total_drop_pct = (low_mileage_price - high_mileage_price) / low_mileage_price
+                
+                # B) Normalize to "Drop per 10,000 km"
+                # Formula: (Total Drop % / Mileage Difference) * 10,000
+                score_per_10k = total_drop_pct * (10000 / mileage_diff) * 100
+                
                 depreciation_data[manufacturer] = {
-                    "depreciation_pct": max(0, depreciation_pct),
+                    "depreciation_pct": max(0, score_per_10k), # Normalized rate
                     "first_price": low_mileage_price,
                     "last_price": high_mileage_price,
                     "color": color,
-                    "sample_size": n,
+                    "sample_size": n
                 }
+            else:
+                # Fallback if not enough data/distance
+                depreciation_data[manufacturer] = {
+                    "depreciation_pct": 0,
+                    "first_price": low_mileage_price,
+                    "last_price": high_mileage_price,
+                    "color": color,
+                    "sample_size": n
+                }
+        # --- UPDATED DEPRECIATION LOGIC END ---
 
     fig.update_layout(
         title=dict(text="<b>Price Depreciation by Mileage</b>"),
@@ -1184,7 +1213,7 @@ def render_tab(active_tab):
                                         "minWidth": "180px",
                                     },
                                     children=[
-                                        html.Div("👤", style={"fontSize": "36px", "marginBottom": "8px"}),
+                                        html.Div("🐐", style={"fontSize": "36px", "marginBottom": "8px"}),
                                         html.Div("Gaya Gur",
                                                  style={"fontSize": "18px", "fontWeight": 700, "color": "#F9FAFB"}),
                                     ],
@@ -1213,7 +1242,7 @@ def render_tab(active_tab):
                                     },
                                     children=[
                                         html.Div("👤", style={"fontSize": "36px", "marginBottom": "8px"}),
-                                        html.Div("Matias Guernilk",
+                                        html.Div("Matias Guernik",
                                                  style={"fontSize": "18px", "fontWeight": 700, "color": "#F9FAFB"}),
                                     ],
                                 ),
@@ -2350,11 +2379,11 @@ def update_model(manufacturers):
     manufacturers = (manufacturers or [])[:5]
     fig, depreciation_data = fig_price_depreciation(manufacturers, df)
 
-    # KPI cards for up to 3 manufacturers
+    # KPI cards for up to 5 manufacturers
     cards = []
     dff = df[df["manufacturer"].isin(manufacturers)].copy()
 
-    for idx, m in enumerate(manufacturers[:3]):
+    for idx, m in enumerate(manufacturers[:5]):
         md = dff[dff["manufacturer"] == m]
         if md.empty:
             continue
@@ -2390,34 +2419,39 @@ def update_model(manufacturers):
             color = data_["color"]
             dep_pct = data_["depreciation_pct"]
 
-            if dep_pct < 15:
-                icon = "🟢"
-                sentiment = "Excellent"
-            elif dep_pct < 30:
-                icon = "🟡"
-                sentiment = "Good"
-            elif dep_pct < 45:
-                icon = "🟠"
-                sentiment = "Moderate"
+            # --- UPDATED REALISTIC THRESHOLDS ---
+            # 3.5% score = ~35% loss over 100k km (Excellent)
+            # 5.0% score = ~50% loss over 100k km (Normal)
+            # 6.5% score = ~65% loss over 100k km (High)
+            
+            # --- UPDATED THRESHOLDS & COLORS ---
+            if dep_pct < 3.5:
+                status_color = "#10B981"  # Green
+                sentiment = "Excellent Retention"
+            elif dep_pct < 4.5:
+                status_color = "#EAB308"  # Yellow
+                sentiment = "Normal Depreciation"
             else:
-                icon = "🔴"
-                sentiment = "High"
+                status_color = "#EF4444"  # Red
+                sentiment = "High Depreciation"
 
+            # Create the card
             trend_items.append(
                 html.Div(
                     className="depreciation-item",
                     style={
                         "background": "rgba(17, 24, 39, 0.5)",
-                        "border": f"2px solid {color}",
+                        "border": f"2px solid {color}",  # <--- BORDER IS MANUFACTURER COLOR
                         "borderRadius": "16px",
                         "padding": "20px 24px",
                         "marginBottom": "12px",
                         "backdropFilter": "blur(10px)",
-                        "boxShadow": f"0 8px 24px {color}30",
+                        "boxShadow": f"0 8px 24px {color}30", # <--- SHADOW IS MANUFACTURER COLOR
                         "position": "relative",
                         "overflow": "hidden",
                     },
                     children=[
+                        # Background gradient (Subtle Manufacturer Color)
                         html.Div(
                             style={
                                 "position": "absolute",
@@ -2438,27 +2472,42 @@ def update_model(manufacturers):
                                             [
                                                 html.Div(
                                                     [
-                                                        html.Span(icon,
-                                                                  style={"fontSize": "24px", "marginRight": "12px"}),
+                                                        # THE DOT (Status Color)
+                                                        html.Div(
+                                                            style={
+                                                                "width": "16px",
+                                                                "height": "16px",
+                                                                "borderRadius": "50%",
+                                                                "background": status_color,
+                                                                "display": "inline-block",
+                                                                "marginRight": "12px",
+                                                                "boxShadow": f"0 0 10px {status_color}80",
+                                                                "verticalAlign": "middle",
+                                                            }
+                                                        ),
+                                                        # THE NAME (Manufacturer Color)
                                                         html.Span(
                                                             manufacturer,
-                                                            style={"fontWeight": 900, "fontSize": "18px",
-                                                                   "color": color},
+                                                            style={
+                                                                "fontWeight": 900,
+                                                                "fontSize": "18px",
+                                                                "color": color, # <--- Matches the border/line
+                                                                "verticalAlign": "middle",
+                                                            }, 
                                                         ),
                                                     ],
-                                                    style={"marginBottom": "12px"},
+                                                    style={"marginBottom": "12px", "display": "flex", "alignItems": "center"},
                                                 ),
                                                 html.Div(
                                                     [
                                                         html.Span(
                                                             "Depreciation Trend: ",
-                                                            style={"color": "#9CA3AF", "fontSize": "13px",
-                                                                   "fontWeight": 600},
+                                                            style={"color": "#9CA3AF", "fontSize": "13px", "fontWeight": 600},
                                                         ),
+                                                        # THE STATUS TEXT (Status Color)
                                                         html.Span(
                                                             sentiment,
-                                                            style={"color": color, "fontSize": "13px",
-                                                                   "fontWeight": 700},
+                                                            style={"color": status_color, "fontSize": "13px", "fontWeight": 700},
                                                         ),
                                                     ]
                                                 ),
@@ -2470,16 +2519,18 @@ def update_model(manufacturers):
                                                 html.Div(
                                                     style={"marginBottom": "8px"},
                                                     children=[
+                                                        # THE PERCENTAGE (Status Color)
                                                         html.Div(
                                                             f"{dep_pct:.1f}%",
                                                             style={
                                                                 "fontSize": "28px",
                                                                 "fontWeight": 900,
-                                                                "color": color,
+                                                                "color": status_color, 
                                                                 "textAlign": "right",
                                                                 "marginBottom": "8px",
                                                             },
                                                         ),
+                                                        # THE BAR BACKGROUND
                                                         html.Div(
                                                             style={
                                                                 "height": "12px",
@@ -2488,14 +2539,15 @@ def update_model(manufacturers):
                                                                 "overflow": "hidden",
                                                             },
                                                             children=[
+                                                                # THE BAR FILL (Status Color)
                                                                 html.Div(
                                                                     style={
-                                                                        "width": f"{min(dep_pct, 100)}%",
+                                                                        "width": f"{min((dep_pct / 7) * 100, 100)}%",
                                                                         "height": "100%",
-                                                                        "background": f"linear-gradient(90deg, {color}, {color}AA)",
+                                                                        "background": f"linear-gradient(90deg, {status_color}, {status_color}AA)",
                                                                         "borderRadius": "6px",
                                                                         "transition": "width 0.6s ease",
-                                                                        "boxShadow": f"0 0 12px {color}80",
+                                                                        "boxShadow": f"0 0 12px {status_color}80",
                                                                     }
                                                                 )
                                                             ],
@@ -2503,7 +2555,7 @@ def update_model(manufacturers):
                                                     ],
                                                 ),
                                                 html.Div(
-                                                    "Value Loss Rate",
+                                                    "Value Loss Rate (per 10k km)",
                                                     style={
                                                         "fontSize": "11px",
                                                         "color": "#6B7280",
@@ -2524,21 +2576,8 @@ def update_model(manufacturers):
                                         dbc.Col(
                                             html.Div(
                                                 [
-                                                    html.Div(
-                                                        "Initial Price",
-                                                        style={
-                                                            "fontSize": "11px",
-                                                            "color": "#9CA3AF",
-                                                            "textTransform": "uppercase",
-                                                            "marginBottom": "4px",
-                                                            "fontWeight": 600,
-                                                        },
-                                                    ),
-                                                    html.Div(
-                                                        f"₪{data_['first_price']:,.0f}",
-                                                        style={"fontSize": "16px", "fontWeight": 800,
-                                                               "color": "#F9FAFB"},
-                                                    ),
+                                                    html.Div("Initial Price", style={"fontSize": "11px", "color": "#9CA3AF", "textTransform": "uppercase", "marginBottom": "4px", "fontWeight": 600}),
+                                                    html.Div(f"₪{data_['first_price']:,.0f}", style={"fontSize": "16px", "fontWeight": 800, "color": "#F9FAFB"}),
                                                 ]
                                             ),
                                             md=4,
@@ -2546,21 +2585,8 @@ def update_model(manufacturers):
                                         dbc.Col(
                                             html.Div(
                                                 [
-                                                    html.Div(
-                                                        "Final Price",
-                                                        style={
-                                                            "fontSize": "11px",
-                                                            "color": "#9CA3AF",
-                                                            "textTransform": "uppercase",
-                                                            "marginBottom": "4px",
-                                                            "fontWeight": 600,
-                                                        },
-                                                    ),
-                                                    html.Div(
-                                                        f"₪{data_['last_price']:,.0f}",
-                                                        style={"fontSize": "16px", "fontWeight": 800,
-                                                               "color": "#F9FAFB"},
-                                                    ),
+                                                    html.Div("Final Price", style={"fontSize": "11px", "color": "#9CA3AF", "textTransform": "uppercase", "marginBottom": "4px", "fontWeight": 600}),
+                                                    html.Div(f"₪{data_['last_price']:,.0f}", style={"fontSize": "16px", "fontWeight": 800, "color": "#F9FAFB"}),
                                                 ]
                                             ),
                                             md=4,
@@ -2568,20 +2594,9 @@ def update_model(manufacturers):
                                         dbc.Col(
                                             html.Div(
                                                 [
-                                                    html.Div(
-                                                        "Value Lost",
-                                                        style={
-                                                            "fontSize": "11px",
-                                                            "color": "#9CA3AF",
-                                                            "textTransform": "uppercase",
-                                                            "marginBottom": "4px",
-                                                            "fontWeight": 600,
-                                                        },
-                                                    ),
-                                                    html.Div(
-                                                        f"₪{data_['first_price'] - data_['last_price']:,.0f}",
-                                                        style={"fontSize": "16px", "fontWeight": 800, "color": color},
-                                                    ),
+                                                    html.Div("Value Lost", style={"fontSize": "11px", "color": "#9CA3AF", "textTransform": "uppercase", "marginBottom": "4px", "fontWeight": 600}),
+                                                    # Value Lost in Status Color (Red/Green) to show impact
+                                                    html.Div(f"₪{data_['first_price'] - data_['last_price']:,.0f}", style={"fontSize": "16px", "fontWeight": 800, "color": status_color}),
                                                 ]
                                             ),
                                             md=4,
@@ -2593,7 +2608,7 @@ def update_model(manufacturers):
                     ],
                 )
             )
-
+            
         depreciation_section = html.Div(
             className="graph-card",
             style={"padding": "24px"},
@@ -2674,37 +2689,39 @@ def update_model(manufacturers):
                                                     style={"marginBottom": "8px", "fontSize": "13px"},
                                                 ),
                                                 html.Li(
-                                                    [
-                                                        html.Strong("Depreciation Formula: "),
-                                                        html.Code(
-                                                            "Depreciation % = ((Low Mileage Avg Price - High Mileage Avg Price) / Low Mileage Avg Price) × 100",
+                                                                    [
+                                                                        html.Strong("Depreciation Formula: "),
+                                                                        html.Code(
+                                                                            "Depreciation Score = (Price Drop % / Mileage Difference) × 10,000 km",
+                                                                            style={
+                                                                                "background": "rgba(236, 72, 153, 0.3)",
+                                                                                "padding": "2px 6px",
+                                                                                "borderRadius": "4px",
+                                                                                "fontSize": "11px",
+                                                                                "marginLeft": "6px",
+                                                                                "color": "#Fbcfe8",
+                                                                            },
+                                                                        ),
+                                                                    ],
+                                                                    style={"marginBottom": "8px", "fontSize": "13px"},
+                                                                ),
+                                                            ],
+                                                            style={"paddingLeft": "20px", "marginBottom": "12px"},
+                                                        ),
+                                                        html.Div(
+                                                            [
+                                                                html.Strong("💡 Methodology Note: ", style={"color": "#10B981"}),
+                                                                "We normalize the score per 10,000 km to ensure fair comparison between high and low mileage vehicles. Additionally, we use the average of the top and bottom 20% of listings (instead of single data points) to eliminate outliers and ensure statistical stability.",
+                                                            ],
                                                             style={
-                                                                "background": "rgba(139, 92, 246, 0.2)",
-                                                                "padding": "2px 6px",
-                                                                "borderRadius": "4px",
-                                                                "fontSize": "11px",
+                                                                "background": "rgba(16, 185, 129, 0.1)",
+                                                                "padding": "12px",
+                                                                "borderRadius": "8px",
+                                                                "border": "1px solid rgba(16, 185, 129, 0.3)",
+                                                                "fontSize": "13px",
+                                                                "marginTop": "8px",
                                                             },
                                                         ),
-                                                    ],
-                                                    style={"marginBottom": "8px", "fontSize": "13px"},
-                                                ),
-                                            ],
-                                            style={"paddingLeft": "20px", "marginBottom": "12px"},
-                                        ),
-                                        html.Div(
-                                            [
-                                                html.Strong("💡 Why this method? ", style={"color": "#10B981"}),
-                                                "Using percentiles (20%) instead of absolute min/max values reduces the impact of outliers and provides a more reliable depreciation estimate.",
-                                            ],
-                                            style={
-                                                "background": "rgba(16, 185, 129, 0.1)",
-                                                "padding": "12px",
-                                                "borderRadius": "8px",
-                                                "border": "1px solid rgba(16, 185, 129, 0.3)",
-                                                "fontSize": "13px",
-                                                "marginTop": "8px",
-                                            },
-                                        ),
                                     ]
                                 ),
                                 style={
