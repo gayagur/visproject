@@ -169,7 +169,9 @@ pio.templates.default = "car_theme"
 
 # ========================= APP =========================
 app = Dash(__name__, external_stylesheets=[dbc.themes.CYBORG])
+server = app.server
 app.title = "Premium Car Analytics"
+
 
 # Add custom CSS for info button hover effect
 app.index_string = """
@@ -2994,4 +2996,4 @@ if __name__ == "__main__":
     debug = os.environ.get("DEBUG", "False").lower() == "true"
     # Use localhost for local development, 0.0.0.0 for production deployment
     host = "127.0.0.1" if os.environ.get("PORT") is None else "0.0.0.0"
-    app.run(host=host, port=port, debug=True)
+    app.run(host=host, port=port, debug=debug)
