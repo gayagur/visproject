@@ -5,6 +5,7 @@
 ![Dashboard Preview](https://img.shields.io/badge/Dashboard-Premium%20Car%20Analytics-60A5FA?style=for-the-badge&logo=chart-line)
 ![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=for-the-badge&logo=python)
 ![Dash](https://img.shields.io/badge/Dash-Plotly-FF6B6B?style=for-the-badge&logo=plotly)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Render-22C55E?style=for-the-badge&logo=render&logoColor=white)](https://visproject.onrender.com)
 
 **Advanced Vehicle Intelligence & Market Insights Platform**
 
@@ -12,7 +13,19 @@
 
 </div>
 
----
+
+## 🔗 Live Dashboard (Render)
+
+<div align="center">
+
+### 🚀 **Live Interactive Dashboard**
+
+### 👉 **[https://visproject.onrender.com](https://visproject.onrender.com)** 👈
+
+*Public demo • Hosted on Render • Real-time analytics*
+Hosted on Render • Public demo • Available 24/7
+
+</div>
 
 ## 📊 Overview
 
