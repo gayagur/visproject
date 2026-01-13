@@ -10,9 +10,10 @@
 **Advanced Vehicle Intelligence & Market Insights Platform**
 
 *Real-time Market Intelligence | Data-Driven Decisions | Executive Analytics*
+---
 
 </div>
----
+
 
 <div align="center">
   <img src="assets/icon.png" width="600"/>
@@ -29,6 +30,7 @@
 
 *Public demo • Hosted on Render • Real-time analytics*
 Hosted on Render • Public demo • Available 24/7
+
 
 </div>
 
