@@ -12,8 +12,13 @@
 *Real-time Market Intelligence | Data-Driven Decisions | Executive Analytics*
 
 </div>
+---
 
+<div align="center">
+  <img src="assets/icon.png" width="600"/>
+</div>
 
+---
 ## 🔗 Live Dashboard (Render)
 
 <div align="center">
