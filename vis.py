@@ -471,8 +471,8 @@ def fig_smart_buyer_matrix(
 
 
 def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed_vehicles: list = None):
-    # Best Deals: compute a per-model z-score for price and surface listings that
-    # are significantly cheaper than their model mean.
+    # Best Deals: compute a per-model z-score for price_per_km and surface listings that
+    # are significantly cheaper per km than their model mean.
     # Only shows deals from vehicles that are displayed in the Smart Buyer Matrix.
 
     dff = data.copy()
@@ -480,21 +480,40 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
     # Filter to only vehicles displayed in the matrix
     if displayed_vehicles and len(displayed_vehicles) > 0:
         dff = dff[dff["vehicle"].isin(displayed_vehicles)]
+    
+    # Calculate normalized scores for both price and mileage relative to model
     dff["price_zscore"] = np.nan
+    dff["mileage_zscore"] = np.nan
+    dff["combined_zscore"] = np.nan
 
     for model in dff["vehicle"].unique():
         model_data = dff[dff["vehicle"] == model]
         if len(model_data) >= 5:
+            # Normalize price relative to model
             mean_price = model_data["price"].mean()
             std_price = model_data["price"].std()
             if std_price > 0:
                 dff.loc[dff["vehicle"] == model, "price_zscore"] = (
-                                                                           dff.loc[dff[
-                                                                                       "vehicle"] == model, "price"] - mean_price
+                    dff.loc[dff["vehicle"] == model, "price"] - mean_price
                 ) / std_price
+            
+            # Normalize mileage relative to model (lower mileage is better, so we invert)
+            mean_mileage = model_data["mileage"].mean()
+            std_mileage = model_data["mileage"].std()
+            if std_mileage > 0:
+                # Invert: lower mileage = better, so negative z-score is good
+                dff.loc[dff["vehicle"] == model, "mileage_zscore"] = -(
+                    dff.loc[dff["vehicle"] == model, "mileage"] - mean_mileage
+                ) / std_mileage
+            
+            # Combined z-score: average of normalized price and mileage
+            # Both should be negative (below average price, below average mileage = good deal)
+            price_z = dff.loc[dff["vehicle"] == model, "price_zscore"]
+            mileage_z = dff.loc[dff["vehicle"] == model, "mileage_zscore"]
+            dff.loc[dff["vehicle"] == model, "combined_zscore"] = (price_z + mileage_z) / 2
 
-    # Keep deals that are at least 0.5 std below their model mean
-    best_deals = dff[dff["price_zscore"] < -0.5].nsmallest(max_results, "price_zscore")
+    # Keep deals that are at least 0.5 std below their model mean (combined score)
+    best_deals = dff[dff["combined_zscore"] < -0.5].nsmallest(max_results, "combined_zscore")
 
     if len(best_deals) == 0:
         return html.Div(
@@ -516,10 +535,10 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
             style={"padding": "24px", "textAlign": "center"},
         )
 
-    best_deals = best_deals.sort_values("price_zscore")
+    best_deals = best_deals.sort_values("combined_zscore")
 
     # Calculate normalized values for color (0-1 range)
-    z_scores_neg = -best_deals["price_zscore"].values
+    z_scores_neg = -best_deals["combined_zscore"].values
     z_min, z_max = z_scores_neg.min(), z_scores_neg.max()
     if z_max > z_min:
         z_normalized = (z_scores_neg - z_min) / (z_max - z_min)
@@ -530,7 +549,7 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
     cards = []
     for idx, (_, row) in enumerate(best_deals.iterrows()):
         z_norm = z_normalized[idx]
-        z_score_neg = -row["price_zscore"]
+        z_score_neg = -row["combined_zscore"]
         
         # Determine color based on normalized z-score
         if z_norm >= 0.75:
@@ -657,7 +676,7 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
     if displayed_vehicles and len(displayed_vehicles) > 0:
         subtitle = f"Best deals from {len(displayed_vehicles)} models shown above"
     else:
-        subtitle = "Cars priced significantly below their model average"
+        subtitle = "Cars with both price and mileage proportionally better than their model average"
 
     return html.Div(
         [
@@ -1512,30 +1531,31 @@ def render_tab(active_tab):
                                             style={"paddingLeft": "20px", "marginBottom": "14px"},
                                         ),
                                         html.H6(
-                                            "🏆 Best Deals (Model-relative underpricing)",
+                                            "🏆 Best Deals (Model-relative value)",
                                             style={"fontWeight": 800, "marginBottom": "10px", "color": "#059669"},
                                         ),
                                         html.Ol(
                                             [
                                                 html.Li(
                                                     [
-                                                        html.Strong("Per-model baseline: "),
-                                                        "For each model with at least 5 listings, compute mean and standard deviation of price.",
+                                                        html.Strong("Per-model normalization: ", style={"color": "#1F2937"}),
+                                                        html.Span("For each model with at least 5 listings, compute mean and standard deviation for both price and mileage.", style={"color": "#4B5563"}),
                                                     ],
                                                     style={"marginBottom": "8px", "fontSize": "13px"},
                                                 ),
                                                 html.Li(
                                                     [
-                                                        html.Strong("Z-score per listing: "),
-                                                        "Compute:",
+                                                        html.Strong("Price z-score: ", style={"color": "#1F2937"}),
+                                                        html.Span("Normalize price relative to model: ", style={"color": "#4B5563"}),
                                                         html.Code(
-                                                            "Z = (Price - ModelMean) / ModelStd",
+                                                            "Z_price = (price - model_mean_price) / model_std_price",
                                                             style={
                                                                 "background": "rgba(5, 150, 105, 0.15)",
                                                                 "padding": "2px 6px",
                                                                 "borderRadius": "4px",
                                                                 "fontSize": "11px",
                                                                 "marginLeft": "6px",
+                                                                "color": "#1F2937",
                                                             },
                                                         ),
                                                     ],
@@ -1543,8 +1563,44 @@ def render_tab(active_tab):
                                                 ),
                                                 html.Li(
                                                     [
-                                                        html.Strong("Deal threshold: "),
-                                                        "Keep listings where Z < -0.5 (at least half a standard deviation below the model average).",
+                                                        html.Strong("Mileage z-score: ", style={"color": "#1F2937"}),
+                                                        html.Span("Normalize mileage relative to model (inverted, lower is better): ", style={"color": "#4B5563"}),
+                                                        html.Code(
+                                                            "Z_mileage = -(mileage - model_mean_mileage) / model_std_mileage",
+                                                            style={
+                                                                "background": "rgba(5, 150, 105, 0.15)",
+                                                                "padding": "2px 6px",
+                                                                "borderRadius": "4px",
+                                                                "fontSize": "11px",
+                                                                "marginLeft": "6px",
+                                                                "color": "#1F2937",
+                                                            },
+                                                        ),
+                                                    ],
+                                                    style={"marginBottom": "8px", "fontSize": "13px"},
+                                                ),
+                                                html.Li(
+                                                    [
+                                                        html.Strong("Combined score: ", style={"color": "#1F2937"}),
+                                                        html.Span("Average both normalized scores: ", style={"color": "#4B5563"}),
+                                                        html.Code(
+                                                            "Z_combined = (Z_price + Z_mileage) / 2",
+                                                            style={
+                                                                "background": "rgba(5, 150, 105, 0.15)",
+                                                                "padding": "2px 6px",
+                                                                "borderRadius": "4px",
+                                                                "fontSize": "11px",
+                                                                "marginLeft": "6px",
+                                                                "color": "#1F2937",
+                                                            },
+                                                        ),
+                                                    ],
+                                                    style={"marginBottom": "8px", "fontSize": "13px"},
+                                                ),
+                                                html.Li(
+                                                    [
+                                                        html.Strong("Deal threshold: ", style={"color": "#1F2937"}),
+                                                        html.Span("Keep listings where Z_combined < -0.5 (below average in both price and mileage relative to model).", style={"color": "#4B5563"}),
                                                     ],
                                                     style={"marginBottom": "8px", "fontSize": "13px"},
                                                 ),
@@ -2667,48 +2723,48 @@ def update_model(manufacturers):
                                     [
                                         html.H6(
                                             "📊 Calculation Methodology",
-                                            style={"fontWeight": 800, "marginBottom": "12px", "color": "#60A5FA"},
+                                            style={"fontWeight": 800, "marginBottom": "12px", "color": "#1F2937"},
                                         ),
                                         html.P(
                                             [
                                                 "The depreciation percentage is calculated using a robust statistical approach:"],
-                                            style={"marginBottom": "12px", "fontSize": "13px"},
+                                            style={"marginBottom": "12px", "fontSize": "13px", "color": "#4B5563"},
                                         ),
                                         html.Ol(
                                             [
                                                 html.Li(
                                                     [
-                                                        html.Strong("Data Sorting: "),
-                                                        "All vehicles of the selected model are sorted by mileage (low to high).",
+                                                        html.Strong("Data Sorting: ", style={"color": "#1F2937"}),
+                                                        html.Span("All vehicles of the selected model are sorted by mileage (low to high).", style={"color": "#4B5563"}),
                                                     ],
                                                     style={"marginBottom": "8px", "fontSize": "13px"},
                                                 ),
                                                 html.Li(
                                                     [
-                                                        html.Strong("Group Selection: "),
-                                                        "The bottom 20% (lowest mileage, minimum 3 vehicles) and top 20% (highest mileage, minimum 3 vehicles) are selected.",
+                                                        html.Strong("Group Selection: ", style={"color": "#1F2937"}),
+                                                        html.Span("The bottom 20% (lowest mileage, minimum 3 vehicles) and top 20% (highest mileage, minimum 3 vehicles) are selected.", style={"color": "#4B5563"}),
                                                     ],
                                                     style={"marginBottom": "8px", "fontSize": "13px"},
                                                 ),
                                                 html.Li(
                                                     [
-                                                        html.Strong("Average Calculation: "),
-                                                        "The average price is computed for each group separately.",
+                                                        html.Strong("Average Calculation: ", style={"color": "#1F2937"}),
+                                                        html.Span("The average price is computed for each group separately.", style={"color": "#4B5563"}),
                                                     ],
                                                     style={"marginBottom": "8px", "fontSize": "13px"},
                                                 ),
                                                 html.Li(
                                                     [
-                                                        html.Strong("Depreciation Formula: "),
+                                                        html.Strong("Depreciation Formula: ", style={"color": "#1F2937"}),
                                                         html.Code(
                                                                             "Depreciation Score = (Price Drop % / Mileage Difference) × 10,000 km",
                                                             style={
-                                                                                "background": "rgba(236, 72, 153, 0.3)",
+                                                                                "background": "rgba(236, 72, 153, 0.15)",
                                                                 "padding": "2px 6px",
                                                                 "borderRadius": "4px",
                                                                 "fontSize": "11px",
                                                                                 "marginLeft": "6px",
-                                                                                "color": "#Fbcfe8",
+                                                                                "color": "#1F2937",
                                                             },
                                                         ),
                                                     ],
@@ -2719,8 +2775,8 @@ def update_model(manufacturers):
                                         ),
                                         html.Div(
                                             [
-                                                                html.Strong("💡 Methodology Note: ", style={"color": "#10B981"}),
-                                                                "We normalize the score per 10,000 km to ensure fair comparison between high and low mileage vehicles. Additionally, we use the average of the top and bottom 20% of listings (instead of single data points) to eliminate outliers and ensure statistical stability.",
+                                                                html.Strong("💡 Methodology Note: ", style={"color": "#059669"}),
+                                                                html.Span("We normalize the score per 10,000 km to ensure fair comparison between high and low mileage vehicles. Additionally, we use the average of the top and bottom 20% of listings (instead of single data points) to eliminate outliers and ensure statistical stability.", style={"color": "#1F2937"}),
                                             ],
                                             style={
                                                 "background": "rgba(16, 185, 129, 0.1)",
