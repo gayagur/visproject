@@ -10,8 +10,17 @@
 **Advanced Vehicle Intelligence & Market Insights Platform**
 
 *Real-time Market Intelligence | Data-Driven Decisions | Executive Analytics*
+---
 
 </div>
+
+
+<div align="center">
+  <img src="assets/icon2.png" width="600"/>
+</div>
+
+---
+
 
 
 ## 🔗 Live Dashboard (Render)
