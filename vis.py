@@ -119,8 +119,8 @@ COLOR_SCALE = [
 car_template = go.layout.Template(
     layout=dict(
         font=dict(family="Inter, system-ui, sans-serif", size=13, color="#1F2937"),
-        paper_bgcolor="rgba(254, 249, 231, 0.0)",
-        plot_bgcolor="rgba(254, 249, 231, 0.0)",
+        paper_bgcolor="rgba(255, 251, 240, 0.0)",
+        plot_bgcolor="rgba(255, 251, 240, 0.0)",
         margin=dict(l=160, r=40, t=120, b=60),
         title=dict(
             x=0.5,
@@ -136,7 +136,7 @@ car_template = go.layout.Template(
             y=1.10,
             xanchor="center",
             x=0.5,
-            bgcolor="rgba(253, 246, 227, 0.95)",
+            bgcolor="rgba(255, 251, 240, 0.95)",
             bordercolor="rgba(107, 114, 128, 0.3)",
             borderwidth=1,
             font=dict(color="#1F2937"),
@@ -158,7 +158,7 @@ car_template = go.layout.Template(
             fixedrange=True,
         ),
         hoverlabel=dict(
-            bgcolor="rgba(254, 249, 231, 0.95)",
+            bgcolor="rgba(255, 251, 240, 0.95)",
             bordercolor="rgba(31, 41, 55, 0.3)",
             font=dict(family="Inter", color="#1F2937"),
         ),
@@ -357,26 +357,66 @@ def fig_smart_buyer_matrix(
         )
         return fig, []
 
-    # Aggregate per vehicle
+    # Aggregate per vehicle model
+    # Compute: AvgPrice, StdPrice, AvgMileageKm, StdMileageKm, Count
     vehicle_stats = (
         dff.groupby("vehicle")
         .agg({"price": ["mean", "std", "count"], "mileage": ["mean", "std"]})
         .reset_index()
     )
-    vehicle_stats.columns = ["vehicle", "avg_price", "price_std", "count", "avg_mileage", "mileage_std"]
+    vehicle_stats.columns = ["vehicle", "avg_price", "price_std", "count", "avg_mileage_km", "mileage_std"]
+    
+    # Rename for clarity (mileage is already in km)
+    vehicle_stats = vehicle_stats.rename(columns={"avg_mileage_km": "avg_mileage"})
 
-    # Value score: avg_price divided by (avg_mileage/1000 + 1)
-    vehicle_stats["value_score"] = vehicle_stats["avg_price"] / (vehicle_stats["avg_mileage"] / 1000 + 1)
+    # Filter out models with insufficient data or invalid mileage
+    # Exclude models with Count < 2 (low confidence) or AvgMileageKm <= 0
+    vehicle_stats = vehicle_stats[
+        (vehicle_stats["count"] >= 2) & (vehicle_stats["avg_mileage"] > 0)
+    ].copy()
 
-    # Normalize to 0-100 where higher is better (inverted scale)
-    min_val = vehicle_stats["value_score"].min()
-    max_val = vehicle_stats["value_score"].max()
-    if max_val > min_val:
-        vehicle_stats["value_normalized"] = 100 - (
-            (vehicle_stats["value_score"] - min_val) / (max_val - min_val) * 100
+    if len(vehicle_stats) == 0:
+        fig = go.Figure()
+        fig.update_layout(
+            title=dict(
+                text="<b>❌ No models with sufficient data</b><br><span style='font-size:14px;color:#4B5563'>Need at least 2 listings per model with valid mileage</span>"
+            ),
+            height=650,
         )
+        return fig, []
+
+    # Compute Price per km (PPK) per model
+    # AvgPPK = AvgPrice / AvgMileageKm
+    # If AvgMileageKm <= 0, set AvgPPK = NaN and exclude from scoring
+    # Since we already filtered avg_mileage > 0, division is safe
+    vehicle_stats["avg_ppk"] = vehicle_stats["avg_price"] / vehicle_stats["avg_mileage"]
+    
+    # Sanity check: all avg_mileage should be > 0 after filtering
+    assert (vehicle_stats["avg_mileage"] > 0).all(), "All avg_mileage must be > 0"
+    
+    # Drop any NaN cases (shouldn't happen after filtering, but for robustness)
+    vehicle_stats = vehicle_stats.dropna(subset=["avg_ppk"])
+
+    # Scoring: Use AvgPPK directly as "worse if larger"
+    # RawScore = AvgPPK (units: currency/km)
+    # Normalize to 0-100 and invert so higher means better value
+    raw_score = vehicle_stats["avg_ppk"]
+    min_raw = raw_score.min()
+    max_raw = raw_score.max()
+    
+    if max_raw > min_raw:
+        # Invert: lower PPK = better value, so higher normalized score
+        vehicle_stats["value_normalized"] = 100 * (1 - (raw_score - min_raw) / (max_raw - min_raw))
     else:
+        # All models have same PPK
         vehicle_stats["value_normalized"] = 50
+    
+    # Clip to [0, 100] for safety
+    vehicle_stats["value_normalized"] = vehicle_stats["value_normalized"].clip(0, 100)
+    
+    # Sanity check: value_normalized should be in [0, 100]
+    assert (vehicle_stats["value_normalized"] >= 0).all() and (vehicle_stats["value_normalized"] <= 100).all(), \
+        "value_normalized must be in [0, 100]"
 
     # Bubble size based on listing count
     min_count = vehicle_stats["count"].min()
@@ -397,11 +437,11 @@ def fig_smart_buyer_matrix(
         if color_val >= 75:
             color = "#059669"  # Green - Excellent deal (adjusted for light bg)
             category = "🟢 Excellent Value"
-        elif color_val >= 50:
-            color = "#D97706"  # Yellow/Orange - Good deal (balanced saturation)
+        elif color_val >= 55:
+            color = "#EAB308"  # Bright Yellow - Good deal (more prominent yellow)
             category = "🟡 Good Value"
-        elif color_val >= 25:
-            color = "#E67E22"  # Orange - Fair deal (reduced saturation for balance)
+        elif color_val >= 35:
+            color = "#D97706"  # Orange - Fair deal (balanced saturation)
             category = "🟠 Fair Value"
         else:
             color = "#DC2626"  # Red - Poor deal (adjusted for light bg)
@@ -440,10 +480,12 @@ def fig_smart_buyer_matrix(
                 hovertemplate=f"<b style='color:{color};font-size:16px;'>%{{fullData.name}}</b><br>"
                 + f"<b style='color:{color};'>{category}</b><br><br>"
                 + f"<span style='color:{color};'>💰 Avg Price: ₪{row['avg_price']:,.0f}</span><br>"
+                + f"<span style='color:{color};'>📊 Std Price: ₪{row['price_std']:,.0f}</span><br>"
                 + f"<span style='color:{color};'>🛣️ Avg Mileage: {row['avg_mileage']:,.0f} km</span><br>"
-                + f"<span style='color:{color};'>📊 Available: {row['count']:,} cars</span><br>"
-                + f"<span style='color:{color};'>🎯 Value Score: {color_val:.0f}/100</span><br>"
-                + f"<span style='color:{color};'>💵 Price/1000km: ₪{row['value_score']:.2f}</span><br>"
+                + f"<span style='color:{color};'>📊 Std Mileage: {row['mileage_std']:,.0f} km</span><br>"
+                + f"<span style='color:{color};'>📈 Available: {row['count']:,} cars</span><br>"
+                + f"<span style='color:{color};'>💵 Avg Price per km: ₪{row['avg_ppk']:.2f} (lower is better)</span><br>"
+                + f"<span style='color:{color};'>🎯 Value (0–100, higher is better): {color_val:.0f}</span><br>"
                 + "<extra></extra>",
             )
         )
@@ -481,39 +523,31 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
     if displayed_vehicles and len(displayed_vehicles) > 0:
         dff = dff[dff["vehicle"].isin(displayed_vehicles)]
     
-    # Calculate normalized scores for both price and mileage relative to model
-    dff["price_zscore"] = np.nan
-    dff["mileage_zscore"] = np.nan
-    dff["combined_zscore"] = np.nan
+    # Calculate Price per km (PPK) for each listing
+    # PPK_listing = price / max(mileage_km, 1) to avoid division by zero
+    dff["ppk_listing"] = dff["price"] / dff["mileage"].clip(lower=1.0)
+    
+    # Calculate per-model statistics for PPK
+    dff["ppk_zscore"] = np.nan
 
     for model in dff["vehicle"].unique():
         model_data = dff[dff["vehicle"] == model]
-        if len(model_data) >= 5:
-            # Normalize price relative to model
-            mean_price = model_data["price"].mean()
-            std_price = model_data["price"].std()
-            if std_price > 0:
-                dff.loc[dff["vehicle"] == model, "price_zscore"] = (
-                    dff.loc[dff["vehicle"] == model, "price"] - mean_price
-                ) / std_price
+        # Need at least 2 listings to compute std (minimum for meaningful comparison)
+        if len(model_data) >= 2:
+            # Compute mean and std of PPK for this model
+            mean_ppk = model_data["ppk_listing"].mean()
+            std_ppk = model_data["ppk_listing"].std()
             
-            # Normalize mileage relative to model (lower mileage is better, so we invert)
-            mean_mileage = model_data["mileage"].mean()
-            std_mileage = model_data["mileage"].std()
-            if std_mileage > 0:
-                # Invert: lower mileage = better, so negative z-score is good
-                dff.loc[dff["vehicle"] == model, "mileage_zscore"] = -(
-                    dff.loc[dff["vehicle"] == model, "mileage"] - mean_mileage
-                ) / std_mileage
-            
-            # Combined z-score: average of normalized price and mileage
-            # Both should be negative (below average price, below average mileage = good deal)
-            price_z = dff.loc[dff["vehicle"] == model, "price_zscore"]
-            mileage_z = dff.loc[dff["vehicle"] == model, "mileage_zscore"]
-            dff.loc[dff["vehicle"] == model, "combined_zscore"] = (price_z + mileage_z) / 2
+            if std_ppk > 0:
+                # Z-score: (PPK_listing - model_mean_PPK) / model_std_PPK
+                # Negative z-score = PPK below model mean = better deal
+                dff.loc[dff["vehicle"] == model, "ppk_zscore"] = (
+                    dff.loc[dff["vehicle"] == model, "ppk_listing"] - mean_ppk
+                ) / std_ppk
 
-    # Keep deals that are at least 0.5 std below their model mean (combined score)
-    best_deals = dff[dff["combined_zscore"] < -0.5].nsmallest(max_results, "combined_zscore")
+    # Keep deals that are at least 0.5 std below their model mean PPK
+    # Lower PPK = better value, so negative z-score is good
+    best_deals = dff[dff["ppk_zscore"] < -0.5].nsmallest(max_results, "ppk_zscore")
 
     if len(best_deals) == 0:
         return html.Div(
@@ -535,10 +569,11 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
             style={"padding": "24px", "textAlign": "center"},
         )
 
-    best_deals = best_deals.sort_values("combined_zscore")
+    best_deals = best_deals.sort_values("ppk_zscore")
 
     # Calculate normalized values for color (0-1 range)
-    z_scores_neg = -best_deals["combined_zscore"].values
+    # Invert z-score so more negative (better deal) = higher normalized value
+    z_scores_neg = -best_deals["ppk_zscore"].values
     z_min, z_max = z_scores_neg.min(), z_scores_neg.max()
     if z_max > z_min:
         z_normalized = (z_scores_neg - z_min) / (z_max - z_min)
@@ -549,7 +584,7 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
     cards = []
     for idx, (_, row) in enumerate(best_deals.iterrows()):
         z_norm = z_normalized[idx]
-        z_score_neg = -row["combined_zscore"]
+        z_score_neg = -row["ppk_zscore"]
         
         # Determine color based on normalized z-score
         if z_norm >= 0.75:
@@ -603,7 +638,7 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
                             "pointerEvents": "none",
                             "zIndex": 10,
                             "textAlign": "center",
-                            "background": "rgba(253, 246, 227, 0.95)",
+                            "background": "rgba(255, 251, 240, 0.95)",
                             "padding": "8px 16px",
                             "borderRadius": "8px",
                             "border": "2px solid #2563EB",
@@ -676,7 +711,7 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
     if displayed_vehicles and len(displayed_vehicles) > 0:
         subtitle = f"Best deals from {len(displayed_vehicles)} models shown above"
     else:
-        subtitle = "Cars with both price and mileage proportionally better than their model average"
+        subtitle = "Cars with price per km significantly below their model average"
 
     return html.Div(
         [
@@ -1482,16 +1517,23 @@ def render_tab(active_tab):
                                                 html.Li(
                                                     [
                                                         html.Strong("Aggregation per model: "),
-                                                        "Compute average price, price std, average mileage, mileage std, and listing count per model.",
+                                                        "Compute average price (AvgPrice), price std (StdPrice), average mileage in km (AvgMileageKm), mileage std (StdMileageKm), and listing count (Count) per model.",
                                                     ],
                                                     style={"marginBottom": "8px", "fontSize": "13px"},
                                                 ),
                                                 html.Li(
                                                     [
-                                                        html.Strong("Value score: "),
-                                                        "Compute:",
+                                                        html.Strong("Filtering: "),
+                                                        "Exclude models with Count < 2 (low confidence) or AvgMileageKm <= 0 (invalid data).",
+                                                    ],
+                                                    style={"marginBottom": "8px", "fontSize": "13px"},
+                                                ),
+                                                html.Li(
+                                                    [
+                                                        html.Strong("Price per km: "),
+                                                        "Compute average price per km per model:",
                                                         html.Code(
-                                                            "ValueScore = AvgPrice / (AvgMileage/1000 + 1)",
+                                                            "AvgPPK = AvgPrice / AvgMileageKm",
                                                             style={
                                                                 "background": "rgba(124, 58, 237, 0.2)",
                                                                 "padding": "2px 6px",
@@ -1500,15 +1542,16 @@ def render_tab(active_tab):
                                                                 "marginLeft": "6px",
                                                             },
                                                         ),
+                                                        " (units: currency/km). Lower AvgPPK means better value.",
                                                     ],
                                                     style={"marginBottom": "8px", "fontSize": "13px"},
                                                 ),
                                                 html.Li(
                                                     [
                                                         html.Strong("Normalization: "),
-                                                        "Convert ValueScore to a 0–100 scale and invert it so higher means better value:",
+                                                        "Normalize AvgPPK to 0–100 scale and invert so higher means better value:",
                                                         html.Code(
-                                                            "ValueNorm = 100 - ((ValueScore - min)/(max-min) * 100)",
+                                                            "ValueNorm = 100 * (1 - (AvgPPK - min)/(max - min))",
                                                             style={
                                                                 "background": "rgba(124, 58, 237, 0.2)",
                                                                 "padding": "2px 6px",
@@ -1517,6 +1560,7 @@ def render_tab(active_tab):
                                                                 "marginLeft": "6px",
                                                             },
                                                         ),
+                                                        " If max==min, set ValueNorm = 50 for all. Clip to [0, 100].",
                                                     ],
                                                     style={"marginBottom": "8px", "fontSize": "13px"},
                                                 ),
@@ -1545,10 +1589,10 @@ def render_tab(active_tab):
                                                 ),
                                                 html.Li(
                                                     [
-                                                        html.Strong("Price z-score: ", style={"color": "#1F2937"}),
-                                                        html.Span("Normalize price relative to model: ", style={"color": "#4B5563"}),
+                                                        html.Strong("Price per km per listing: ", style={"color": "#1F2937"}),
+                                                        html.Span("Compute PPK for each listing: ", style={"color": "#4B5563"}),
                                                         html.Code(
-                                                            "Z_price = (price - model_mean_price) / model_std_price",
+                                                            "PPK_listing = price / max(mileage_km, 1)",
                                                             style={
                                                                 "background": "rgba(5, 150, 105, 0.15)",
                                                                 "padding": "2px 6px",
@@ -1558,33 +1602,23 @@ def render_tab(active_tab):
                                                                 "color": "#1F2937",
                                                             },
                                                         ),
+                                                        " (units: currency/km). Use max(...,1) only to avoid division by zero.",
                                                     ],
                                                     style={"marginBottom": "8px", "fontSize": "13px"},
                                                 ),
                                                 html.Li(
                                                     [
-                                                        html.Strong("Mileage z-score: ", style={"color": "#1F2937"}),
-                                                        html.Span("Normalize mileage relative to model (inverted, lower is better): ", style={"color": "#4B5563"}),
-                                                        html.Code(
-                                                            "Z_mileage = -(mileage - model_mean_mileage) / model_std_mileage",
-                                                            style={
-                                                                "background": "rgba(5, 150, 105, 0.15)",
-                                                                "padding": "2px 6px",
-                                                                "borderRadius": "4px",
-                                                                "fontSize": "11px",
-                                                                "marginLeft": "6px",
-                                                                "color": "#1F2937",
-                                                            },
-                                                        ),
+                                                        html.Strong("Model statistics: ", style={"color": "#1F2937"}),
+                                                        html.Span("For each model, compute mean and std of PPK across all listings. Need at least 2 listings per model.", style={"color": "#4B5563"}),
                                                     ],
                                                     style={"marginBottom": "8px", "fontSize": "13px"},
                                                 ),
                                                 html.Li(
                                                     [
-                                                        html.Strong("Combined score: ", style={"color": "#1F2937"}),
-                                                        html.Span("Average both normalized scores: ", style={"color": "#4B5563"}),
+                                                        html.Strong("PPK z-score: ", style={"color": "#1F2937"}),
+                                                        html.Span("Normalize PPK relative to model: ", style={"color": "#4B5563"}),
                                                         html.Code(
-                                                            "Z_combined = (Z_price + Z_mileage) / 2",
+                                                            "Z_PPK = (PPK_listing - model_mean_PPK) / model_std_PPK",
                                                             style={
                                                                 "background": "rgba(5, 150, 105, 0.15)",
                                                                 "padding": "2px 6px",
@@ -1594,20 +1628,21 @@ def render_tab(active_tab):
                                                                 "color": "#1F2937",
                                                             },
                                                         ),
+                                                        " Negative z-score = PPK below model mean = better deal.",
                                                     ],
                                                     style={"marginBottom": "8px", "fontSize": "13px"},
                                                 ),
                                                 html.Li(
                                                     [
                                                         html.Strong("Deal threshold: ", style={"color": "#1F2937"}),
-                                                        html.Span("Keep listings where Z_combined < -0.5 (below average in both price and mileage relative to model).", style={"color": "#4B5563"}),
+                                                        html.Span("Keep listings where Z_PPK < -0.5 (PPK at least 0.5 std below model mean).", style={"color": "#4B5563"}),
                                                     ],
                                                     style={"marginBottom": "8px", "fontSize": "13px"},
                                                 ),
                                                 html.Li(
                                                     [
                                                         html.Strong("Ranking: "),
-                                                        "Sort by most negative Z (best relative deal) and display the top results.",
+                                                        "Sort by most negative Z_PPK (best relative deal) and display the top results.",
                                                     ],
                                                     style={"marginBottom": "8px", "fontSize": "13px"},
                                                 ),
@@ -1631,7 +1666,7 @@ def render_tab(active_tab):
                                     ]
                                 ),
                                 style={
-                                    "background": "rgba(253, 246, 227, 0.95)",
+                                    "background": "rgba(255, 251, 240, 0.95)",
                                     "border": "1px solid rgba(107, 114, 128, 0.3)",
                                 },
                             ),
@@ -2159,22 +2194,24 @@ def update_buyer_guide(vehicles, price_range, max_mileage, country, transmission
     if displayed_vehicles and len(displayed_vehicles) > 0:
         dff_deals_filtered = dff_deals_filtered[dff_deals_filtered["vehicle"].isin(displayed_vehicles)]
 
-    # Calculate z-scores for best deals
-    dff_deals_filtered["price_zscore"] = np.nan
+    # Calculate Price per km (PPK) z-scores for best deals
+    # PPK_listing = price / max(mileage_km, 1)
+    dff_deals_filtered["ppk_listing"] = dff_deals_filtered["price"] / dff_deals_filtered["mileage"].clip(lower=1.0)
+    dff_deals_filtered["ppk_zscore"] = np.nan
+    
     for model in dff_deals_filtered["vehicle"].unique():
         model_data = dff_deals_filtered[dff_deals_filtered["vehicle"] == model]
-        if len(model_data) >= 5:
-            mean_price = model_data["price"].mean()
-            std_price = model_data["price"].std()
-            if std_price > 0:
-                dff_deals_filtered.loc[dff_deals_filtered["vehicle"] == model, "price_zscore"] = (
-                                                                                                         dff_deals_filtered.loc[
-                                                                                                             dff_deals_filtered[
-                                                                                                                 "vehicle"] == model, "price"] - mean_price
-                                                                                                 ) / std_price
+        # Need at least 2 listings to compute std
+        if len(model_data) >= 2:
+            mean_ppk = model_data["ppk_listing"].mean()
+            std_ppk = model_data["ppk_listing"].std()
+            if std_ppk > 0:
+                dff_deals_filtered.loc[dff_deals_filtered["vehicle"] == model, "ppk_zscore"] = (
+                    dff_deals_filtered.loc[dff_deals_filtered["vehicle"] == model, "ppk_listing"] - mean_ppk
+                ) / std_ppk
 
-    best_deals_data = dff_deals_filtered[dff_deals_filtered["price_zscore"] < -0.5].nsmallest(10, "price_zscore")
-    best_deals_data = best_deals_data.sort_values("price_zscore")
+    best_deals_data = dff_deals_filtered[dff_deals_filtered["ppk_zscore"] < -0.5].nsmallest(10, "ppk_zscore")
+    best_deals_data = best_deals_data.sort_values("ppk_zscore")
 
     # Convert to dict for storage
     deals_store_data = best_deals_data.to_dict("records") if len(best_deals_data) > 0 else {}
@@ -2205,18 +2242,24 @@ def open_vehicle_modal(n_clicks_list, close_clicks, deals_data, is_open):
     if not deals_data:
         return is_open, "Vehicle Details", html.Div()
 
-    # Find which card was clicked
-    if "deal-card" not in triggered_id or not n_clicks_list:
+    # Find which card was clicked by extracting index from triggered_id
+    # triggered_id format: '{"type":"deal-card","index":2}.n_clicks'
+    if "deal-card" not in triggered_id or not deals_data:
         return is_open, "Vehicle Details", html.Div()
 
-    # Find the index of the clicked card
-    card_index = None
-    for i, n_clicks in enumerate(n_clicks_list):
-        if n_clicks and n_clicks > 0:
-            card_index = i
-            break
-
-    if card_index is None or card_index >= len(deals_data) or not deals_data:
+    # Extract the index from the triggered_id JSON string
+    import json
+    try:
+        # Parse the JSON part of the triggered_id (before .n_clicks)
+        json_part = triggered_id.split('.')[0]
+        card_info = json.loads(json_part)
+        card_index = card_info.get("index")
+        
+        # Validate index
+        if card_index is None or card_index < 0 or card_index >= len(deals_data):
+            return is_open, "Vehicle Details", html.Div()
+    except (json.JSONDecodeError, KeyError, ValueError, IndexError):
+        # Fallback: if parsing fails, return current state
         return is_open, "Vehicle Details", html.Div()
 
     vehicle_data = deals_data[card_index]
@@ -2367,7 +2410,7 @@ def open_vehicle_modal(n_clicks_list, close_clicks, deals_data, is_open):
     additional_fields = set(vehicle_data.keys()) - {
         "price", "mileage", "on_road_year", "owner_count", "transmission",
         "fuel_type", "body_type", "drive_type", "color", "manufacturer",
-        "country", "url", "vehicle", "price_zscore"
+        "country", "url", "vehicle", "ppk_zscore"
     }
     for field in sorted(additional_fields):
         value = vehicle_data.get(field)
@@ -2457,7 +2500,7 @@ def update_model(manufacturers):
         cards.append(
             html.Div(
                 style={
-                    "background": "rgba(254, 249, 231, 0.8)",
+                    "background": "rgba(255, 251, 240, 0.8)",
                     "border": f"1px solid {color}",
                     "borderRadius": "12px",
                     "padding": "16px",
@@ -2505,7 +2548,7 @@ def update_model(manufacturers):
                 html.Div(
                     className="depreciation-item",
                     style={
-                        "background": "rgba(254, 249, 231, 0.8)",
+                        "background": "rgba(255, 251, 240, 0.8)",
                         "border": f"2px solid {color}",  # <--- BORDER IS MANUFACTURER COLOR
                         "borderRadius": "16px",
                         "padding": "20px 24px",
@@ -2790,7 +2833,7 @@ def update_model(manufacturers):
                                     ]
                                 ),
                                 style={
-                                    "background": "rgba(253, 246, 227, 0.95)",
+                                    "background": "rgba(255, 251, 240, 0.95)",
                                     "border": "1px solid rgba(107, 114, 128, 0.3)",
                                     "marginBottom": "20px",
                                 },

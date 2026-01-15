@@ -1,11 +1,11 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 :root {
-  /* Neutral Foundation - Warm cream/ivory base colors for light theme */
-  --bg-primary: #FEF9E7;
-  --bg-secondary: #FDF6E3;
-  --bg-card: rgba(253, 246, 227, 0.8);
-  --bg-card-hover: rgba(253, 246, 227, 0.95);
+  /* Neutral Foundation - Warm cream/ivory base colors for light theme (brighter) */
+  --bg-primary: #FFFBF0;
+  --bg-secondary: #FFF9F0;
+  --bg-card: rgba(255, 251, 240, 0.8);
+  --bg-card-hover: rgba(255, 251, 240, 0.95);
   --text-primary: #1F2937;
   --text-secondary: #4B5563;
   --text-muted: #6B7280;
@@ -301,7 +301,7 @@ body::before {
 
 /* === DROPDOWNS === */
 .Select-control {
-  background: rgba(253, 246, 227, 0.8) !important;
+  background: rgba(255, 251, 240, 0.8) !important;
   border: 1px solid var(--border) !important;
   border-radius: 12px !important;
   color: var(--text-primary) !important;
@@ -365,9 +365,9 @@ label {
 
 /* === AG GRID === */
 .ag-theme-alpine {
-  --ag-background-color: rgba(253, 246, 227, 0.8);
+  --ag-background-color: rgba(255, 251, 240, 0.8);
   --ag-odd-row-background-color: rgba(37, 99, 235, 0.03);
-  --ag-header-background-color: rgba(253, 246, 227, 0.95);
+  --ag-header-background-color: rgba(255, 251, 240, 0.95);
   --ag-border-color: var(--border);
   --ag-row-border-color: var(--border);
   --ag-foreground-color: var(--text-primary);
@@ -428,7 +428,7 @@ label {
 /* === HORIZONTAL SCROLL === */
 div[style*="overflowX"] {
   scrollbar-width: thin;
-  scrollbar-color: rgba(37, 99, 235, 0.4) rgba(253, 246, 227, 0.5);
+  scrollbar-color: rgba(37, 99, 235, 0.4) rgba(255, 251, 240, 0.5);
 }
 
 div[style*="overflowX"]::-webkit-scrollbar {
@@ -436,7 +436,7 @@ div[style*="overflowX"]::-webkit-scrollbar {
 }
 
 div[style*="overflowX"]::-webkit-scrollbar-track {
-  background: rgba(253, 246, 227, 0.5);
+  background: rgba(255, 251, 240, 0.5);
   border-radius: 4px;
 }
 
@@ -867,7 +867,7 @@ div[style*="overflowX"]::-webkit-scrollbar-thumb:hover {
 .comparison-insight-container {
   margin: 28px 0 32px 0;
   padding: 18px 24px;
-  background: rgba(253, 246, 227, 0.6);
+  background: rgba(255, 251, 240, 0.6);
   border: 1px solid rgba(107, 114, 128, 0.2);
   border-radius: 10px;
   max-width: 700px;
@@ -903,7 +903,7 @@ div[style*="overflowX"]::-webkit-scrollbar-thumb:hover {
   grid-template-columns: 2fr 1.5fr 1.5fr;
   gap: 24px;
   padding: 18px 28px;
-  background: rgba(253, 246, 227, 0.7);
+  background: rgba(255, 251, 240, 0.7);
   border-bottom: 1px solid var(--border);
   align-items: center;
 }
