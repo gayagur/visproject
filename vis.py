@@ -1072,10 +1072,40 @@ def fig_group_comparison(group_a: pd.DataFrame, group_b: pd.DataFrame):
 app.layout = dbc.Container(
     fluid=True,
     children=[
-        # HERO
+        # HERO with car illustration
         html.Div(
             className="hero",
             children=[
+                # Car illustration with bar chart
+                html.Div(
+                    style={
+                        "display": "flex",
+                        "justifyContent": "center",
+                        "alignItems": "center",
+                        "marginBottom": "20px",
+                        "gap": "16px",
+                    },
+                    children=[
+                        # Layered cars - SVG
+                        html.Img(
+                            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60' viewBox='0 0 120 60' fill='none'%3E%3C!-- Back car (grey/faded) --%3E%3Cg opacity='0.4'%3E%3Cellipse cx='25' cy='42' rx='20' ry='8' fill='%234A5568'/%3E%3Crect x='10' y='28' width='30' height='16' rx='4' fill='%234A5568'/%3E%3Crect x='14' y='20' width='22' height='10' rx='3' fill='%234A5568'/%3E%3Ccircle cx='16' cy='44' r='5' fill='%232D3748'/%3E%3Ccircle cx='34' cy='44' r='5' fill='%232D3748'/%3E%3Crect x='16' y='22' width='6' height='5' rx='1' fill='%2390CDF4'/%3E%3Crect x='24' y='22' width='6' height='5' rx='1' fill='%2390CDF4'/%3E%3C/g%3E%3C!-- Middle car (blue) --%3E%3Cg opacity='0.7'%3E%3Cellipse cx='50' cy='44' rx='22' ry='9' fill='%232B6CB0'/%3E%3Crect x='33' y='28' width='34' height='18' rx='5' fill='%233182CE'/%3E%3Crect x='38' y='18' width='24' height='12' rx='3' fill='%233182CE'/%3E%3Ccircle cx='40' cy='46' r='6' fill='%231A365D'/%3E%3Ccircle cx='60' cy='46' r='6' fill='%231A365D'/%3E%3Crect x='40' y='21' width='7' height='6' rx='1' fill='%2390CDF4'/%3E%3Crect x='49' y='21' width='7' height='6' rx='1' fill='%2390CDF4'/%3E%3C/g%3E%3C!-- Front car (red) --%3E%3Cellipse cx='82' cy='46' rx='26' ry='10' fill='%23C53030'/%3E%3Crect x='62' y='28' width='40' height='20' rx='6' fill='%23E53E3E'/%3E%3Crect x='68' y='14' width='28' height='16' rx='4' fill='%23E53E3E'/%3E%3Ccircle cx='72' cy='48' r='7' fill='%231A202C'/%3E%3Ccircle cx='92' cy='48' r='7' fill='%231A202C'/%3E%3Crect x='71' y='18' width='9' height='8' rx='2' fill='%2390CDF4'/%3E%3Crect x='82' y='18' width='9' height='8' rx='2' fill='%2390CDF4'/%3E%3Crect x='64' y='34' width='6' height='4' rx='1' fill='%23FBD38D'/%3E%3Crect x='94' y='34' width='6' height='4' rx='1' fill='%23FBD38D'/%3E%3C/svg%3E",
+                            style={"height": "60px"},
+                        ),
+                        # Separator line
+                        html.Div(
+                            style={
+                                "width": "2px",
+                                "height": "50px",
+                                "background": "linear-gradient(180deg, transparent, rgba(255,255,255,0.5), transparent)",
+                            }
+                        ),
+                        # Bar chart SVG
+                        html.Img(
+                            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='70' height='50' viewBox='0 0 70 50' fill='none'%3E%3Crect x='2' y='30' width='10' height='18' rx='2' fill='%234E8EA2'/%3E%3Crect x='16' y='20' width='10' height='28' rx='2' fill='%2349769F'/%3E%3Crect x='30' y='8' width='10' height='40' rx='2' fill='%230A4174'/%3E%3Crect x='44' y='15' width='10' height='33' rx='2' fill='%2349769F'/%3E%3Crect x='58' y='25' width='10' height='23' rx='2' fill='%237BBDE8'/%3E%3C/svg%3E",
+                            style={"height": "50px"},
+                        ),
+                    ],
+                ),
                 html.H1("PREMIUM CAR ANALYTICS"),
                 html.P("Advanced Vehicle Intelligence & Market Insights Platform"),
             ],
@@ -1985,7 +2015,85 @@ def render_tab(active_tab):
                                             id="loading-matrix",
                                             type="circle",
                                             children=[dcc.Graph(id="buyer-matrix", config={"displayModeBar": False})],
-                                        )
+                                        ),
+                                        # Color Legend for Smart Buyer Matrix
+                                        html.Div(
+                                            style={
+                                                "display": "flex",
+                                                "justifyContent": "center",
+                                                "alignItems": "center",
+                                                "gap": "24px",
+                                                "padding": "14px 20px",
+                                                "marginTop": "8px",
+                                                "background": "rgba(248, 250, 252, 0.8)",
+                                                "borderRadius": "8px",
+                                                "border": "1px solid rgba(0, 29, 57, 0.06)",
+                                                "flexWrap": "wrap",
+                                            },
+                                            children=[
+                                                html.Span(
+                                                    "Value Score:",
+                                                    style={
+                                                        "fontSize": "12px",
+                                                        "fontWeight": "600",
+                                                        "color": "#64748B",
+                                                        "marginRight": "4px",
+                                                    }
+                                                ),
+                                                # Excellent Value - Green
+                                                html.Div(
+                                                    style={"display": "flex", "alignItems": "center", "gap": "6px"},
+                                                    children=[
+                                                        html.Div(style={
+                                                            "width": "12px",
+                                                            "height": "12px",
+                                                            "borderRadius": "50%",
+                                                            "background": "#16A34A",
+                                                        }),
+                                                        html.Span("Excellent (≥75)", style={"fontSize": "11px", "color": "#374151", "fontWeight": "500"}),
+                                                    ]
+                                                ),
+                                                # Good Value - Lime
+                                                html.Div(
+                                                    style={"display": "flex", "alignItems": "center", "gap": "6px"},
+                                                    children=[
+                                                        html.Div(style={
+                                                            "width": "12px",
+                                                            "height": "12px",
+                                                            "borderRadius": "50%",
+                                                            "background": "#65A30D",
+                                                        }),
+                                                        html.Span("Good (55-74)", style={"fontSize": "11px", "color": "#374151", "fontWeight": "500"}),
+                                                    ]
+                                                ),
+                                                # Fair Value - Yellow
+                                                html.Div(
+                                                    style={"display": "flex", "alignItems": "center", "gap": "6px"},
+                                                    children=[
+                                                        html.Div(style={
+                                                            "width": "12px",
+                                                            "height": "12px",
+                                                            "borderRadius": "50%",
+                                                            "background": "#EAB308",
+                                                        }),
+                                                        html.Span("Fair (35-54)", style={"fontSize": "11px", "color": "#374151", "fontWeight": "500"}),
+                                                    ]
+                                                ),
+                                                # Poor Value - Red
+                                                html.Div(
+                                                    style={"display": "flex", "alignItems": "center", "gap": "6px"},
+                                                    children=[
+                                                        html.Div(style={
+                                                            "width": "12px",
+                                                            "height": "12px",
+                                                            "borderRadius": "50%",
+                                                            "background": "#DC2626",
+                                                        }),
+                                                        html.Span("Poor (<35)", style={"fontSize": "11px", "color": "#374151", "fontWeight": "500"}),
+                                                    ]
+                                                ),
+                                            ],
+                                        ),
                                     ],
                                 )
                             ],
@@ -2658,7 +2766,7 @@ def update_model(manufacturers):
                 status_color = "#2D8659"  # Green - Excellent retention
                 sentiment = "Excellent Retention"
             elif dep_pct < 4.5:
-                status_color = "#64748B"  # Grey - Normal depreciation
+                status_color = "#F59E0B"  # Orange - Normal depreciation
                 sentiment = "Normal Depreciation"
             else:
                 status_color = "#DC2626"  # Red - High depreciation
