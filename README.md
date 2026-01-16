@@ -9,8 +9,7 @@
 
 **Advanced Vehicle Intelligence & Market Insights Platform**
 
-*Real-time Market Intelligence | Data-Driven Decisions | Executive Analytics*
----
+**Real-time Market Intelligence | Data-Driven Decisions | Executive Analytics**
 
 </div>
 
