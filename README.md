@@ -15,7 +15,7 @@
 
 
 <div align="center">
-  <img src="assets/icon2.png" width="600"/>
+  <img src="assets/icon4.png" width="600"/>
 </div>
 
 ---
