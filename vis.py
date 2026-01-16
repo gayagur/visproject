@@ -184,7 +184,7 @@ server = app.server
 app.title = "Premium Car Analytics"
 
 
-# Add custom CSS for premium hover effects
+# Add custom CSS for premium hover effects and animations
 app.index_string = """
 <!DOCTYPE html>
 <html>
@@ -233,6 +233,80 @@ app.index_string = """
             /* Smooth transitions for all interactive elements */
             .graph-card, .filter-card, .kpi-card {
                 transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            }
+            
+            /* === DEPRECIATION ANALYSIS ANIMATIONS === */
+            .depreciation-item {
+                animation: slideInUp 0.4s ease-out forwards;
+                opacity: 0;
+            }
+            .depreciation-item:nth-child(1) { animation-delay: 0.1s; }
+            .depreciation-item:nth-child(2) { animation-delay: 0.2s; }
+            .depreciation-item:nth-child(3) { animation-delay: 0.3s; }
+            .depreciation-item:nth-child(4) { animation-delay: 0.4s; }
+            .depreciation-item:nth-child(5) { animation-delay: 0.5s; }
+            
+            @keyframes slideInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            
+            .depreciation-item:hover {
+                transform: translateX(8px) !important;
+                box-shadow: 0 8px 24px rgba(0, 29, 57, 0.1) !important;
+            }
+            
+            /* Progress bar animation */
+            .depreciation-bar-fill {
+                animation: growWidth 1s ease-out forwards;
+                transform-origin: left;
+            }
+            
+            @keyframes growWidth {
+                from {
+                    transform: scaleX(0);
+                }
+                to {
+                    transform: scaleX(1);
+                }
+            }
+            
+            /* Percentage counter animation */
+            .depreciation-percentage {
+                animation: fadeInScale 0.5s ease-out forwards;
+            }
+            
+            @keyframes fadeInScale {
+                from {
+                    opacity: 0;
+                    transform: scale(0.8);
+                }
+                to {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+            }
+            
+            /* Pulse effect for status dot */
+            .status-dot {
+                animation: pulse 2s ease-in-out infinite;
+            }
+            
+            @keyframes pulse {
+                0%, 100% {
+                    box-shadow: 0 0 0 0 currentColor;
+                    opacity: 1;
+                }
+                50% {
+                    box-shadow: 0 0 0 6px transparent;
+                    opacity: 0.8;
+                }
             }
         </style>
     </head>
@@ -489,19 +563,19 @@ def fig_smart_buyer_matrix(
     for _, row in vehicle_stats.iterrows():
         color_val = row["value_normalized"]
 
-        # Ocean Blue palette for deal quality
+        # Traffic-light colors based on meaning
         if color_val >= 75:
-            color = "#0A4174"  # Dark blue - Excellent value
+            color = "#16A34A"  # Green - Excellent value (best deals)
             category = "Excellent Value"
         elif color_val >= 55:
-            color = "#49769F"  # Medium blue - Good value
+            color = "#65A30D"  # Lime green - Good value
             category = "Good Value"
         elif color_val >= 35:
-            color = "#4E8EA2"  # Teal - Fair value
+            color = "#EAB308"  # Yellow/Amber - Fair value
             category = "Fair Value"
         else:
-            color = "#6EA2B3"  # Light teal - Basic value
-            category = "Basic Value"
+            color = "#DC2626"  # Red - Poor value (overpriced)
+            category = "Poor Value"
 
         fig.add_trace(
             go.Scatter(
@@ -933,6 +1007,10 @@ def fig_group_comparison(group_a: pd.DataFrame, group_b: pd.DataFrame):
 
     fig = go.Figure()
 
+    # Muted, subtle colors for value comparison
+    group_a_color = "#6B8CAE"  # Soft steel blue
+    group_b_color = "#9B8AA8"  # Soft lavender
+    
     fig.add_trace(
         go.Bar(
             y=metrics,
@@ -940,15 +1018,15 @@ def fig_group_comparison(group_a: pd.DataFrame, group_b: pd.DataFrame):
             name="Group A",
             orientation="h",
             marker=dict(
-                color=COLORS["blue"],
-                line=dict(color="rgba(31, 41, 55, 0.3)", width=2),
+                color=group_a_color,
+                line=dict(color="rgba(255, 255, 255, 0.5)", width=1),
             ),
             text=[
                 f"₪{metrics_data[m][0]:,.2f}" if ("KM" in m or "Stability" in m) else f"{metrics_data[m][0]:,.0f}"
                 for m in metrics
             ],
             textposition="inside",
-            textfont=dict(size=13, color="#1F2937", family="Inter"),
+            textfont=dict(size=13, color="#FFFFFF", family="Inter"),
             hovertemplate="<b>Group A</b><br>%{y}: %{text}<extra></extra>",
         )
     )
@@ -960,15 +1038,15 @@ def fig_group_comparison(group_a: pd.DataFrame, group_b: pd.DataFrame):
             name="Group B",
             orientation="h",
             marker=dict(
-                color=COLORS["purple"],
-                line=dict(color="rgba(31, 41, 55, 0.3)", width=2),
+                color=group_b_color,
+                line=dict(color="rgba(255, 255, 255, 0.5)", width=1),
             ),
             text=[
                 f"₪{metrics_data[m][1]:,.2f}" if ("KM" in m or "Stability" in m) else f"{metrics_data[m][1]:,.0f}"
                 for m in metrics
             ],
             textposition="inside",
-            textfont=dict(size=13, color="#1F2937", family="Inter"),
+            textfont=dict(size=13, color="#FFFFFF", family="Inter"),
             hovertemplate="<b>Group B</b><br>%{y}: %{text}<extra></extra>",
         )
     )
@@ -1133,7 +1211,7 @@ def render_tab(active_tab):
                     ],
                 ),
                 
-                # Features Section - Enhanced cards
+                # Features Section - Enhanced cards with icons
                 dbc.Row(
                     className="g-4 mb-4",
                     children=[
@@ -1146,15 +1224,30 @@ def render_tab(active_tab):
                                     "borderTop": "3px solid #0A4174",
                                 },
                                 children=[
+                                    # Icon + Title row
                                     html.Div(
-                                        "Manufacturers Comparison",
                                         style={
-                                            "fontSize": "18px", 
-                                            "fontWeight": 700, 
+                                            "display": "flex",
+                                            "alignItems": "center",
+                                            "gap": "12px",
                                             "marginBottom": "16px",
-                                            "color": "#001D39",
-                                            "letterSpacing": "-0.3px",
                                         },
+                                        children=[
+                                            # Two cars comparison icon
+                                            html.Img(
+                                                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='40' viewBox='0 0 56 40' fill='none'%3E%3C!-- Back car --%3E%3Cg opacity='0.5'%3E%3Crect x='2' y='18' width='22' height='12' rx='3' fill='%230A4174'/%3E%3Crect x='5' y='12' width='16' height='8' rx='2' fill='%230A4174'/%3E%3Ccircle cx='8' cy='30' r='3' fill='%23001D39'/%3E%3Ccircle cx='20' cy='30' r='3' fill='%23001D39'/%3E%3Crect x='7' y='15' width='4' height='3' rx='1' fill='%237BBDE8'/%3E%3Crect x='13' y='15' width='4' height='3' rx='1' fill='%237BBDE8'/%3E%3C/g%3E%3C!-- Front car --%3E%3Cg%3E%3Crect x='18' y='14' width='24' height='14' rx='3' fill='%230A4174'/%3E%3Crect x='21' y='6' width='18' height='10' rx='2' fill='%230A4174'/%3E%3Ccircle cx='24' cy='28' r='4' fill='%23001D39'/%3E%3Ccircle cx='38' cy='28' r='4' fill='%23001D39'/%3E%3Crect x='24' y='9' width='5' height='4' rx='1' fill='%237BBDE8'/%3E%3Crect x='31' y='9' width='5' height='4' rx='1' fill='%237BBDE8'/%3E%3C/g%3E%3C!-- Document icon --%3E%3Crect x='44' y='8' width='10' height='14' rx='1' fill='%2349769F'/%3E%3Cline x1='46' y1='12' x2='52' y2='12' stroke='white' stroke-width='1'/%3E%3Cline x1='46' y1='15' x2='52' y2='15' stroke='white' stroke-width='1'/%3E%3Cline x1='46' y1='18' x2='50' y2='18' stroke='white' stroke-width='1'/%3E%3C/svg%3E",
+                                                style={"height": "40px"},
+                                            ),
+                                            html.Div(
+                                                "Manufacturers Comparison",
+                                                style={
+                                                    "fontSize": "18px", 
+                                                    "fontWeight": 700, 
+                                                    "color": "#001D39",
+                                                    "letterSpacing": "-0.3px",
+                                                },
+                                            ),
+                                        ],
                                     ),
                                     html.P(
                                         "Compare up to 5 different car models side by side. Analyze price depreciation trends, "
@@ -1175,15 +1268,30 @@ def render_tab(active_tab):
                                     "borderTop": "3px solid #49769F",
                                 },
                                 children=[
+                                    # Icon + Title row
                                     html.Div(
-                                        "Group Comparison",
                                         style={
-                                            "fontSize": "18px", 
-                                            "fontWeight": 700, 
+                                            "display": "flex",
+                                            "alignItems": "center",
+                                            "gap": "12px",
                                             "marginBottom": "16px",
-                                            "color": "#001D39",
-                                            "letterSpacing": "-0.3px",
                                         },
+                                        children=[
+                                            # Two documents comparison icon
+                                            html.Img(
+                                                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='52' height='40' viewBox='0 0 52 40' fill='none'%3E%3C!-- Left document --%3E%3Crect x='2' y='4' width='18' height='26' rx='2' fill='%2349769F'/%3E%3Cline x1='6' y1='10' x2='16' y2='10' stroke='white' stroke-width='1.5'/%3E%3Cline x1='6' y1='14' x2='16' y2='14' stroke='white' stroke-width='1.5'/%3E%3Cline x1='6' y1='18' x2='14' y2='18' stroke='white' stroke-width='1.5'/%3E%3Cline x1='6' y1='22' x2='16' y2='22' stroke='white' stroke-width='1.5'/%3E%3Cline x1='6' y1='26' x2='12' y2='26' stroke='white' stroke-width='1.5'/%3E%3C!-- Right document --%3E%3Crect x='24' y='4' width='18' height='26' rx='2' fill='%234E8EA2'/%3E%3Cline x1='28' y1='10' x2='38' y2='10' stroke='white' stroke-width='1.5'/%3E%3Cline x1='28' y1='14' x2='38' y2='14' stroke='white' stroke-width='1.5'/%3E%3Cline x1='28' y1='18' x2='36' y2='18' stroke='white' stroke-width='1.5'/%3E%3Cline x1='28' y1='22' x2='38' y2='22' stroke='white' stroke-width='1.5'/%3E%3Cline x1='28' y1='26' x2='34' y2='26' stroke='white' stroke-width='1.5'/%3E%3C/svg%3E",
+                                                style={"height": "40px"},
+                                            ),
+                                            html.Div(
+                                                "Group Comparison",
+                                                style={
+                                                    "fontSize": "18px", 
+                                                    "fontWeight": 700, 
+                                                    "color": "#001D39",
+                                                    "letterSpacing": "-0.3px",
+                                                },
+                                            ),
+                                        ],
                                     ),
                                     html.P(
                                         "Compare two different vehicle groups based on model, year range, and transmission type. "
@@ -1204,15 +1312,30 @@ def render_tab(active_tab):
                                     "borderTop": "3px solid #4E8EA2",
                                 },
                                 children=[
+                                    # Icon + Title row
                                     html.Div(
-                                        "Buyer's Guide",
                                         style={
-                                            "fontSize": "18px", 
-                                            "fontWeight": 700, 
+                                            "display": "flex",
+                                            "alignItems": "center",
+                                            "gap": "12px",
                                             "marginBottom": "16px",
-                                            "color": "#001D39",
-                                            "letterSpacing": "-0.3px",
                                         },
+                                        children=[
+                                            # Magnifying glass with car icon
+                                            html.Img(
+                                                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='40' viewBox='0 0 48 40' fill='none'%3E%3C!-- Car --%3E%3Crect x='8' y='18' width='24' height='12' rx='3' fill='%234E8EA2'/%3E%3Crect x='12' y='10' width='16' height='10' rx='2' fill='%234E8EA2'/%3E%3Ccircle cx='14' cy='30' r='3.5' fill='%23001D39'/%3E%3Ccircle cx='26' cy='30' r='3.5' fill='%23001D39'/%3E%3Crect x='14' y='13' width='5' height='4' rx='1' fill='%237BBDE8'/%3E%3Crect x='21' y='13' width='5' height='4' rx='1' fill='%237BBDE8'/%3E%3C!-- Magnifying glass --%3E%3Ccircle cx='36' cy='12' r='8' stroke='%230A4174' stroke-width='2.5' fill='none'/%3E%3Cline x1='42' y1='18' x2='48' y2='24' stroke='%230A4174' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E",
+                                                style={"height": "40px"},
+                                            ),
+                                            html.Div(
+                                                "Buyer's Guide",
+                                                style={
+                                                    "fontSize": "18px", 
+                                                    "fontWeight": 700, 
+                                                    "color": "#001D39",
+                                                    "letterSpacing": "-0.3px",
+                                                },
+                                            ),
+                                        ],
                                     ),
                                     html.P(
                                         "Smart Buyer Matrix helps you find the best value deals. Use advanced filters to narrow down "
@@ -2541,7 +2664,7 @@ def update_model(manufacturers):
                 status_color = "#DC2626"  # Red - High depreciation
                 sentiment = "High Depreciation"
 
-            # Create the card with manufacturer color
+            # Create the card with manufacturer color and animations
             trend_items.append(
                 html.Div(
                     className="depreciation-item",
@@ -2557,6 +2680,8 @@ def update_model(manufacturers):
                         "boxShadow": "0 4px 16px rgba(0, 29, 57, 0.06)",
                         "position": "relative",
                         "overflow": "hidden",
+                        "transition": "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                        "cursor": "default",
                     },
                     children=[
                         # Subtle background accent
@@ -2580,8 +2705,9 @@ def update_model(manufacturers):
                                             [
                                                 html.Div(
                                                     [
-                                                        # Manufacturer color indicator dot (matches chart line)
+                                                        # Manufacturer color indicator dot (matches chart line) with pulse
                                                         html.Div(
+                                                            className="status-dot",
                                                             style={
                                                                 "width": "14px",
                                                                 "height": "14px",
@@ -2591,6 +2717,7 @@ def update_model(manufacturers):
                                                                 "marginRight": "12px",
                                                                 "verticalAlign": "middle",
                                                                 "boxShadow": f"0 2px 6px {color}40",
+                                                                "color": color,  # For pulse animation
                                                             }
                                                         ),
                                                         # Manufacturer name
@@ -2628,31 +2755,32 @@ def update_model(manufacturers):
                                                     children=[
                                                         html.Div(
                                                             f"{dep_pct:.1f}%",
+                                                            className="depreciation-percentage",
                                                             style={
-                                                                "fontSize": "24px",
+                                                                "fontSize": "26px",
                                                                 "fontWeight": 800,
                                                                 "color": status_color, 
                                                                 "textAlign": "right",
-                                                                "marginBottom": "6px",
+                                                                "marginBottom": "8px",
                                                             },
                                                         ),
-                                                        # Progress bar
+                                                        # Animated progress bar
                                                         html.Div(
                                                             style={
-                                                                "height": "8px",
-                                                                "background": "rgba(148, 163, 184, 0.15)",
-                                                                "borderRadius": "4px",
+                                                                "height": "10px",
+                                                                "background": "rgba(148, 163, 184, 0.12)",
+                                                                "borderRadius": "5px",
                                                                 "overflow": "hidden",
                                                             },
                                                             children=[
                                                                 html.Div(
+                                                                    className="depreciation-bar-fill",
                                                                     style={
                                                                         "width": f"{min((dep_pct / 7) * 100, 100)}%",
                                                                         "height": "100%",
-                                                                        "background": status_color,
-                                                                        "borderRadius": "4px",
-                                                                        "transition": "width 0.5s ease",
-                                                                        "opacity": "0.7",
+                                                                        "background": f"linear-gradient(90deg, {status_color}, {status_color}CC)",
+                                                                        "borderRadius": "5px",
+                                                                        "boxShadow": f"0 2px 8px {status_color}40",
                                                                     }
                                                                 )
                                                             ],
@@ -2907,11 +3035,11 @@ def update_groups(ma, ya, ta, mb, yb, tb):
             winning_group = "B"
 
     if insights:
-        # Build insight with colored group name
+        # Build insight with colored group name (muted colors)
         group_name_span = html.Span(
             f"Group {winning_group}",
             style={
-                "color": COLORS["blue"] if winning_group == "A" else COLORS["purple"],
+                "color": "#6B8CAE" if winning_group == "A" else "#9B8AA8",  # Muted steel blue / lavender
                 "fontWeight": 700,
             }
         )
