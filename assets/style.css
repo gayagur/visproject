@@ -147,7 +147,7 @@ body {
 }
 
 .section-title {
-  font-size: 11px;
+  font-size: 15px;
   font-weight: 700;
   margin: 0;
   color: var(--text-secondary);
@@ -167,9 +167,9 @@ body {
 }
 
 .section-sub {
-  font-size: 13px;
+  font-size: 16px;
   color: var(--text-muted);
-  margin: 6px 0 0 14px;
+  margin: 8px 0 0 14px;
 }
 
 /* === KPI CARDS - Premium with Hierarchy === */
@@ -708,41 +708,74 @@ button:hover, .btn:hover {
 
 /* Comparison Table */
 .comparison-table {
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: 14px;
+  background: #FFFFFF;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  width: 100%;
 }
 
 .comparison-table-header-row {
   display: grid;
   grid-template-columns: 2fr 1.5fr 1.5fr;
-  gap: 16px;
-  padding: 16px 24px;
-  background: rgba(10, 65, 116, 0.04);
-  border-bottom: 1px solid var(--border);
+  gap: 0;
+  padding: 16px;
+  background: #FFFFFF;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.comparison-table-header-row > * {
+  padding: 0 16px;
+  border-right: 1px solid #e2e8f0;
+}
+
+.comparison-table-header-row > *:last-child {
+  border-right: none;
 }
 
 .comparison-table-header {
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
-  color: var(--accent-primary);
+  color: var(--text-primary);
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.2px;
+}
+
+.comparison-table-header-center {
+  text-align: center;
+}
+
+.comparison-table-body {
+  display: flex;
+  flex-direction: column;
 }
 
 .comparison-table-row {
   display: grid;
   grid-template-columns: 2fr 1.5fr 1.5fr;
-  gap: 16px;
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--border-light);
+  gap: 0;
+  padding: 16px;
+  border-bottom: 1px solid #e2e8f0;
   transition: background 0.2s ease;
+  background: #FFFFFF;
+}
+
+.comparison-table-row > * {
+  padding: 0 16px;
+  border-right: 1px solid #e2e8f0;
+}
+
+.comparison-table-row > *:last-child {
+  border-right: none;
+}
+
+.comparison-table-row:nth-child(even) {
+  background: #FFFFFF;
 }
 
 .comparison-table-row:hover {
-  background: rgba(10, 65, 116, 0.02);
+  background: #f8fafc !important;
 }
 
 .comparison-table-row:last-child {
@@ -750,26 +783,21 @@ button:hover, .btn:hover {
 }
 
 .comparison-metric-label {
-  font-size: 13px;
-  color: var(--text-muted);
+  font-size: 15px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
 }
 
 .comparison-metric-value {
-  font-size: 16px;
+  font-size: 20px;
   color: var(--text-primary);
-  font-weight: 600;
-}
-
-.comparison-metric-emphasized {
-  font-weight: 700;
-  color: var(--accent-primary);
-}
-
-.comparison-metric-emphasized::after {
-  content: "✓";
-  font-size: 12px;
-  margin-left: 8px;
-  color: #4E8EA2;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 @media (max-width: 768px) {
@@ -784,6 +812,22 @@ button:hover, .btn:hover {
   .comparison-table-header-row,
   .comparison-table-row {
     grid-template-columns: 1.5fr 1fr 1fr;
-    padding: 14px 18px;
+    padding: 12px;
   }
+  
+  .comparison-table-header-row > *,
+  .comparison-table-row > * {
+    padding: 0 12px;
+  }
+}
+
+/* ========================= TEAM SECTION ========================= */
+.team-member-image {
+  cursor: pointer;
+}
+
+.team-member-image:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 24px rgba(74, 144, 217, 0.35) !important;
+  border-color: #3B82F6 !important;
 }

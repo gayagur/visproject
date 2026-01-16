@@ -205,13 +205,12 @@ app.index_string = """
             }
             .deal-card-hover {
                 position: relative;
-                border: 1px solid rgba(10, 65, 116, 0.06) !important;
                 background: #FFFFFF !important;
             }
             .deal-card-hover:hover {
                 transform: translateY(-8px) !important;
                 box-shadow: 0 16px 40px rgba(0, 29, 57, 0.12) !important;
-                border-color: rgba(10, 65, 116, 0.15) !important;
+                border-color: #3B82F6 !important;
                 z-index: 10 !important;
             }
             .best-deals-container {
@@ -293,20 +292,78 @@ app.index_string = """
                 }
             }
             
-            /* Pulse effect for status dot */
-            .status-dot {
-                animation: pulse 2s ease-in-out infinite;
-            }
-            
-            @keyframes pulse {
-                0%, 100% {
-                    box-shadow: 0 0 0 0 currentColor;
-                    opacity: 1;
-                }
-                50% {
-                    box-shadow: 0 0 0 6px transparent;
-                    opacity: 0.8;
-                }
+             /* Pulse effect for status dot */
+             .status-dot {
+                 animation: pulse 2s ease-in-out infinite;
+             }
+             
+             @keyframes pulse {
+                 0%, 100% {
+                     box-shadow: 0 0 0 0 currentColor;
+                     opacity: 1;
+                 }
+                 50% {
+                     box-shadow: 0 0 0 6px transparent;
+                     opacity: 0.8;
+                 }
+             }
+             
+             /* Landing page animations */
+             @keyframes fadeInUp {
+                 from {
+                     opacity: 0;
+                     transform: translateY(30px);
+                 }
+                 to {
+                     opacity: 1;
+                     transform: translateY(0);
+                 }
+             }
+             
+             .feature-card-animated {
+                 animation: fadeInUp 0.6s ease-out forwards;
+                 opacity: 0;
+             }
+             
+             .feature-card-animated:nth-child(1) { animation-delay: 0.1s; }
+             .feature-card-animated:nth-child(2) { animation-delay: 0.2s; }
+             .feature-card-animated:nth-child(3) { animation-delay: 0.3s; }
+             
+             .feature-card-modern {
+                 transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                 position: relative;
+                 overflow: visible;
+             }
+             
+             .feature-card-modern:hover {
+                 transform: translateY(-4px) scale(1.02);
+                 box-shadow: 0 20px 40px rgba(0, 29, 57, 0.15) !important;
+             }
+             
+             .feature-icon-circle {
+                 width: 80px;
+                 height: 80px;
+                 border-radius: 50%;
+                 display: flex;
+                 align-items: center;
+                 justify-content: center;
+                 margin: 0 auto -40px auto;
+                 position: relative;
+                 z-index: 10;
+                 box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+                 transition: all 0.3s ease;
+             }
+             
+             .feature-card-modern:hover .feature-icon-circle {
+                transform: scale(1.1);
+                 box-shadow: 0 12px 32px rgba(59, 130, 246, 0.4);
+             }
+             
+             .gradient-text {
+                 background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 50%, #0A4174 100%);
+                 -webkit-background-clip: text;
+                 -webkit-text-fill-color: transparent;
+                 background-clip: text;
             }
         </style>
     </head>
@@ -716,19 +773,23 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
         z_norm = z_normalized[idx]
         z_score_neg = -row["ppk_zscore"]
         
-        # Soft, premium color palette for deal quality
-        if z_norm >= 0.75:
-            color = "#0A4174"  # Dark blue - Outstanding
-            quality = "Outstanding"
-        elif z_norm >= 0.5:
-            color = "#49769F"  # Medium blue - Excellent
+        # Convert normalized z-score (0-1) to Value Score (0-100) to match legend thresholds
+        value_score = z_norm * 100
+        
+        # Color palette matching Value Score legend EXACTLY
+        # Use same thresholds as legend: ≥75, 55-74, 35-54, <35
+        if value_score >= 75:
+            color = "#22c55e"  # Dark green - Excellent (≥75)
             quality = "Excellent"
-        elif z_norm >= 0.25:
-            color = "#4E8EA2"  # Teal - Very Good
-            quality = "Very Good"
-        else:
-            color = "#6EA2B3"  # Light teal - Good
+        elif value_score >= 55:
+            color = "#84cc16"  # Light green - Good (55-74)
             quality = "Good"
+        elif value_score >= 35:
+            color = "#eab308"  # Yellow - Fair (35-54)
+            quality = "Fair"
+        else:
+            color = "#ef4444"  # Red - Poor (<35)
+            quality = "Poor"
         
         # Store row index in the card ID for callback
         card_id = f"deal-card-{idx}"
@@ -742,11 +803,11 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
                     "minWidth": "260px",
                     "width": "260px",
                     "flexShrink": 0,
-                    "border": "none",
-                    "borderRadius": "12px",
+                    "border": "1.5px solid #93C5FD",
+                    "borderRadius": "10px",
                     "background": "#FFFFFF",
                     "boxShadow": "0 1px 3px rgba(0, 0, 0, 0.05)",
-                    "transition": "all 0.2s ease",
+                    "transition": "all 0.3s ease",
                     "cursor": "pointer",
                     "marginRight": "14px",
                     "position": "relative",
@@ -807,18 +868,17 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
                         style={"marginBottom": "12px", "textAlign": "center"},
                     ),
                     html.Div(
-                        [
-                            html.Span("Below avg: ", style={"color": "#6B7280", "fontSize": "12px"}),
-                            html.Span(
-                                f"{z_score_neg:.2f} std",
-                                style={"color": color, "fontWeight": 600, "fontSize": "14px"},
-                            ),
-                        ],
-                        style={"marginBottom": "10px", "textAlign": "center"},
+                        f"Below avg: {z_score_neg:.2f} std",
+                        style={
+                            "color": "#1A202C",
+                            "fontSize": "12px",
+                            "marginBottom": "10px",
+                            "textAlign": "center",
+                        },
                     ),
                     html.Div(
                         [
-                            html.Span("Rating: ", style={"color": "#6B7280", "fontSize": "12px"}),
+                            html.Span("Rating: ", style={"color": "#1A202C", "fontSize": "12px"}),
                             html.Span(
                                 quality,
                                 style={"color": color, "fontWeight": 600, "fontSize": "13px"},
@@ -991,7 +1051,7 @@ def fig_group_comparison(group_a: pd.DataFrame, group_b: pd.DataFrame):
 
     metrics_data = {
         "Price per KM": [value_for_money(group_a), value_for_money(group_b)],
-        "Price Stability": [float(group_a["price"].std()), float(group_b["price"].std())],
+        "Price Stability (σ)": [float(group_a["price"].std()), float(group_b["price"].std())],
         "Avg Mileage": [float(group_a["mileage"].mean()), float(group_b["mileage"].mean())],
         "Avg Price": [float(group_a["price"].mean()), float(group_b["price"].mean())],
     }
@@ -1007,10 +1067,15 @@ def fig_group_comparison(group_a: pd.DataFrame, group_b: pd.DataFrame):
 
     fig = go.Figure()
 
-    # Muted, subtle colors for value comparison
-    group_a_color = "#6B8CAE"  # Soft steel blue
-    group_b_color = "#9B8AA8"  # Soft lavender
+    # Vibrant, professional colors for value comparison
+    # Group A: Rich ocean blue with subtle gradient effect
+    group_a_color = "#4A90D9"  # Vibrant ocean blue
+    group_a_darker = "#3A7BC4"  # Slightly darker for depth
     
+    # Group B: Warm, vibrant purple with subtle gradient effect
+    group_b_color = "#9F7AEA"  # Warm vibrant purple
+    group_b_darker = "#8B6BD9"  # Slightly darker for depth
+
     fig.add_trace(
         go.Bar(
             y=metrics,
@@ -1019,14 +1084,16 @@ def fig_group_comparison(group_a: pd.DataFrame, group_b: pd.DataFrame):
             orientation="h",
             marker=dict(
                 color=group_a_color,
-                line=dict(color="rgba(255, 255, 255, 0.5)", width=1),
+                line=dict(color="rgba(255, 255, 255, 0.6)", width=1.5),
+                # Create subtle gradient effect using a slightly darker base
+                opacity=0.95,
             ),
             text=[
                 f"₪{metrics_data[m][0]:,.2f}" if ("KM" in m or "Stability" in m) else f"{metrics_data[m][0]:,.0f}"
                 for m in metrics
             ],
             textposition="inside",
-            textfont=dict(size=13, color="#FFFFFF", family="Inter"),
+            textfont=dict(size=13, color="#FFFFFF", family="Inter", weight="bold"),
             hovertemplate="<b>Group A</b><br>%{y}: %{text}<extra></extra>",
         )
     )
@@ -1039,14 +1106,16 @@ def fig_group_comparison(group_a: pd.DataFrame, group_b: pd.DataFrame):
             orientation="h",
             marker=dict(
                 color=group_b_color,
-                line=dict(color="rgba(255, 255, 255, 0.5)", width=1),
+                line=dict(color="rgba(255, 255, 255, 0.6)", width=1.5),
+                # Create subtle gradient effect using a slightly darker base
+                opacity=0.95,
             ),
             text=[
                 f"₪{metrics_data[m][1]:,.2f}" if ("KM" in m or "Stability" in m) else f"{metrics_data[m][1]:,.0f}"
                 for m in metrics
             ],
             textposition="inside",
-            textfont=dict(size=13, color="#FFFFFF", family="Inter"),
+            textfont=dict(size=13, color="#FFFFFF", family="Inter", weight="bold"),
             hovertemplate="<b>Group B</b><br>%{y}: %{text}<extra></extra>",
         )
     )
@@ -1055,6 +1124,7 @@ def fig_group_comparison(group_a: pd.DataFrame, group_b: pd.DataFrame):
         title=dict(text="<b>Vehicle Value Comparison</b>"),
         barmode="relative",
         height=500,
+        margin=dict(l=140, r=40, t=80, b=60),  # Increased left margin to prevent label clipping
         xaxis_title="<b>Relative Performance</b>",
         xaxis=dict(
             zeroline=True,
@@ -1063,7 +1133,12 @@ def fig_group_comparison(group_a: pd.DataFrame, group_b: pd.DataFrame):
             range=[-120, 120],
         ),
     )
-    fig.update_yaxes(autorange="reversed")
+    fig.update_yaxes(
+        autorange="reversed",
+        tickfont=dict(size=13, family="Inter"),
+        # Ensure labels are not clipped
+        automargin=True,
+    )
 
     return fig, metrics_data
 
@@ -1213,30 +1288,35 @@ def render_tab(active_tab):
     if active_tab == "tab-home":
         return html.Div(
             [
-                # Welcome Section - Premium styling
+                # Welcome Section - Clean professional styling
                 html.Div(
                     className="graph-card",
                     style={
-                        "padding": "48px 40px", 
-                        "marginBottom": "28px",
-                        "background": "linear-gradient(145deg, #FFFFFF 0%, #F8FBFC 100%)",
+                        "padding": "56px 40px", 
+                        "marginBottom": "48px",
+                        "background": "#F8FAFC",
                         "borderTop": "4px solid #0A4174",
                     },
                     children=[
                         html.H1(
                             "WELCOME TO PREMIUM CAR ANALYTICS",
                             style={
-                                "fontSize": "30px",
+                                "fontSize": "32px",
                                 "fontWeight": 800,
-                                "marginBottom": "14px",
-                                "color": "#001D39",
+                                "marginBottom": "16px",
                                 "textTransform": "uppercase",
                                 "letterSpacing": "2px",
+                                "color": "#0F172A",
                             },
                         ),
                         html.P(
                             "Advanced Vehicle Intelligence & Market Insights Platform",
-                            style={"fontSize": "16px", "color": "#49769F", "marginBottom": "0", "fontWeight": 400},
+                            style={
+                                "fontSize": "17px", 
+                                "color": "#49769F", 
+                                "marginBottom": "0", 
+                                "fontWeight": 500,
+                            },
                         ),
                     ],
                 ),
@@ -1244,46 +1324,50 @@ def render_tab(active_tab):
                 # Features Section - Enhanced cards with icons
                 dbc.Row(
                     className="g-4 mb-4",
-                    children=[
+                            children=[
                         dbc.Col(
-                            html.Div(
-                                className="graph-card",
-                                style={
-                                    "padding": "32px", 
+                                html.Div(
+                                className="graph-card feature-card-modern feature-card-animated",
+                                    style={
+                                    "padding": "48px 40px 32px 40px", 
                                     "height": "100%",
-                                    "borderTop": "3px solid #0A4174",
-                                },
-                                children=[
-                                    # Icon + Title row
-                                    html.Div(
-                                        style={
-                                            "display": "flex",
-                                            "alignItems": "center",
-                                            "gap": "12px",
-                                            "marginBottom": "16px",
-                                        },
-                                        children=[
-                                            # Two cars comparison icon
+                                    "borderTop": "4px solid #3B82F6",
+                                    "background": "linear-gradient(145deg, #FFFFFF 0%, #FAFCFF 100%)",
+                                    "boxShadow": "0 4px 16px rgba(0, 29, 57, 0.08)",
+                                        "borderRadius": "16px",
+                                    "marginTop": "40px",
+                                    },
+                                    children=[
+                                    # Icon circle with gradient
+                                html.Div(
+                                        className="feature-icon-circle",
+                                    style={
+                                            "background": "linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%)",
+                                    },
+                                    children=[
                                             html.Img(
-                                                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='40' viewBox='0 0 56 40' fill='none'%3E%3C!-- Back car --%3E%3Cg opacity='0.5'%3E%3Crect x='2' y='18' width='22' height='12' rx='3' fill='%230A4174'/%3E%3Crect x='5' y='12' width='16' height='8' rx='2' fill='%230A4174'/%3E%3Ccircle cx='8' cy='30' r='3' fill='%23001D39'/%3E%3Ccircle cx='20' cy='30' r='3' fill='%23001D39'/%3E%3Crect x='7' y='15' width='4' height='3' rx='1' fill='%237BBDE8'/%3E%3Crect x='13' y='15' width='4' height='3' rx='1' fill='%237BBDE8'/%3E%3C/g%3E%3C!-- Front car --%3E%3Cg%3E%3Crect x='18' y='14' width='24' height='14' rx='3' fill='%230A4174'/%3E%3Crect x='21' y='6' width='18' height='10' rx='2' fill='%230A4174'/%3E%3Ccircle cx='24' cy='28' r='4' fill='%23001D39'/%3E%3Ccircle cx='38' cy='28' r='4' fill='%23001D39'/%3E%3Crect x='24' y='9' width='5' height='4' rx='1' fill='%237BBDE8'/%3E%3Crect x='31' y='9' width='5' height='4' rx='1' fill='%237BBDE8'/%3E%3C/g%3E%3C!-- Document icon --%3E%3Crect x='44' y='8' width='10' height='14' rx='1' fill='%2349769F'/%3E%3Cline x1='46' y1='12' x2='52' y2='12' stroke='white' stroke-width='1'/%3E%3Cline x1='46' y1='15' x2='52' y2='15' stroke='white' stroke-width='1'/%3E%3Cline x1='46' y1='18' x2='50' y2='18' stroke='white' stroke-width='1'/%3E%3C/svg%3E",
-                                                style={"height": "40px"},
+                                                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3v18h18'/%3E%3Cpath d='M18 7v10'/%3E%3Cpath d='M13 7v10'/%3E%3Cpath d='M8 7v10'/%3E%3C/svg%3E",
+                                                style={"width": "40px", "height": "40px"},
                                             ),
-                                            html.Div(
-                                                "Manufacturers Comparison",
-                                                style={
-                                                    "fontSize": "18px", 
-                                                    "fontWeight": 700, 
-                                                    "color": "#001D39",
-                                                    "letterSpacing": "-0.3px",
-                                                },
-                                            ),
-                                        ],
+                                    ],
+                                ),
+                                html.Div(
+                                        "Manufacturers Comparison",
+                                    style={
+                                            "fontSize": "22px", 
+                                            "fontWeight": 700, 
+                                            "color": "#001D39",
+                                            "letterSpacing": "-0.3px",
+                                            "marginTop": "48px",
+                                            "marginBottom": "16px",
+                                            "textAlign": "center",
+                                        },
                                     ),
                                     html.P(
                                         "Compare up to 5 different car models side by side. Analyze price depreciation trends, "
                                         "mileage impact, and value retention over time. Get detailed insights into which models "
                                         "maintain their value best.",
-                                        style={"fontSize": "14px", "lineHeight": "1.8", "color": "#64748B", "margin": 0},
+                                        style={"fontSize": "16px", "lineHeight": "1.6", "color": "#64748B", "margin": 0, "textAlign": "center"},
                                     ),
                                 ],
                             ),
@@ -1291,43 +1375,47 @@ def render_tab(active_tab):
                         ),
                         dbc.Col(
                             html.Div(
-                                className="graph-card",
+                                className="graph-card feature-card-modern feature-card-animated",
                                 style={
-                                    "padding": "32px", 
+                                    "padding": "48px 40px 32px 40px", 
                                     "height": "100%",
-                                    "borderTop": "3px solid #49769F",
+                                    "borderTop": "4px solid #49769F",
+                                    "background": "linear-gradient(145deg, #FFFFFF 0%, #FAFCFF 100%)",
+                                    "boxShadow": "0 4px 16px rgba(0, 29, 57, 0.08)",
+                                    "borderRadius": "16px",
+                                    "marginTop": "40px",
                                 },
                                 children=[
-                                    # Icon + Title row
+                                    # Icon circle with gradient
                                     html.Div(
+                                        className="feature-icon-circle",
                                         style={
-                                            "display": "flex",
-                                            "alignItems": "center",
-                                            "gap": "12px",
-                                            "marginBottom": "16px",
+                                            "background": "linear-gradient(135deg, #49769F 0%, #1E40AF 100%)",
                                         },
                                         children=[
-                                            # Two documents comparison icon
                                             html.Img(
-                                                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='52' height='40' viewBox='0 0 52 40' fill='none'%3E%3C!-- Left document --%3E%3Crect x='2' y='4' width='18' height='26' rx='2' fill='%2349769F'/%3E%3Cline x1='6' y1='10' x2='16' y2='10' stroke='white' stroke-width='1.5'/%3E%3Cline x1='6' y1='14' x2='16' y2='14' stroke='white' stroke-width='1.5'/%3E%3Cline x1='6' y1='18' x2='14' y2='18' stroke='white' stroke-width='1.5'/%3E%3Cline x1='6' y1='22' x2='16' y2='22' stroke='white' stroke-width='1.5'/%3E%3Cline x1='6' y1='26' x2='12' y2='26' stroke='white' stroke-width='1.5'/%3E%3C!-- Right document --%3E%3Crect x='24' y='4' width='18' height='26' rx='2' fill='%234E8EA2'/%3E%3Cline x1='28' y1='10' x2='38' y2='10' stroke='white' stroke-width='1.5'/%3E%3Cline x1='28' y1='14' x2='38' y2='14' stroke='white' stroke-width='1.5'/%3E%3Cline x1='28' y1='18' x2='36' y2='18' stroke='white' stroke-width='1.5'/%3E%3Cline x1='28' y1='22' x2='38' y2='22' stroke='white' stroke-width='1.5'/%3E%3Cline x1='28' y1='26' x2='34' y2='26' stroke='white' stroke-width='1.5'/%3E%3C/svg%3E",
-                                                style={"height": "40px"},
-                                            ),
-                                            html.Div(
-                                                "Group Comparison",
-                                                style={
-                                                    "fontSize": "18px", 
-                                                    "fontWeight": 700, 
-                                                    "color": "#001D39",
-                                                    "letterSpacing": "-0.3px",
-                                                },
+                                                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='7' height='7'/%3E%3Crect x='14' y='3' width='7' height='7'/%3E%3Crect x='14' y='14' width='7' height='7'/%3E%3Crect x='3' y='14' width='7' height='7'/%3E%3C/svg%3E",
+                                                style={"width": "40px", "height": "40px"},
                                             ),
                                         ],
+                                    ),
+                                    html.Div(
+                                        "Group Comparison",
+                                        style={
+                                            "fontSize": "22px", 
+                                            "fontWeight": 700, 
+                                            "color": "#001D39",
+                                            "letterSpacing": "-0.3px",
+                                            "marginTop": "48px",
+                                            "marginBottom": "16px",
+                                            "textAlign": "center",
+                                        },
                                     ),
                                     html.P(
                                         "Compare two different vehicle groups based on model, year range, and transmission type. "
                                         "Analyze price stability, value for money, and average metrics to make informed decisions "
                                         "between different vehicle segments.",
-                                        style={"fontSize": "14px", "lineHeight": "1.8", "color": "#64748B", "margin": 0},
+                                        style={"fontSize": "16px", "lineHeight": "1.6", "color": "#64748B", "margin": 0, "textAlign": "center"},
                                     ),
                                 ],
                             ),
@@ -1335,43 +1423,47 @@ def render_tab(active_tab):
                         ),
                         dbc.Col(
                             html.Div(
-                                className="graph-card",
+                                className="graph-card feature-card-modern feature-card-animated",
                                 style={
-                                    "padding": "32px", 
+                                    "padding": "48px 40px 32px 40px", 
                                     "height": "100%",
-                                    "borderTop": "3px solid #4E8EA2",
+                                    "borderTop": "4px solid #4E8EA2",
+                                    "background": "linear-gradient(145deg, #FFFFFF 0%, #FAFCFF 100%)",
+                                    "boxShadow": "0 4px 16px rgba(0, 29, 57, 0.08)",
+                                    "borderRadius": "16px",
+                                    "marginTop": "40px",
                                 },
                                 children=[
-                                    # Icon + Title row
+                                    # Icon circle with gradient
                                     html.Div(
+                                        className="feature-icon-circle",
                                         style={
-                                            "display": "flex",
-                                            "alignItems": "center",
-                                            "gap": "12px",
-                                            "marginBottom": "16px",
+                                            "background": "linear-gradient(135deg, #4E8EA2 0%, #1E40AF 100%)",
                                         },
                                         children=[
-                                            # Magnifying glass with car icon
                                             html.Img(
-                                                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='40' viewBox='0 0 48 40' fill='none'%3E%3C!-- Car --%3E%3Crect x='8' y='18' width='24' height='12' rx='3' fill='%234E8EA2'/%3E%3Crect x='12' y='10' width='16' height='10' rx='2' fill='%234E8EA2'/%3E%3Ccircle cx='14' cy='30' r='3.5' fill='%23001D39'/%3E%3Ccircle cx='26' cy='30' r='3.5' fill='%23001D39'/%3E%3Crect x='14' y='13' width='5' height='4' rx='1' fill='%237BBDE8'/%3E%3Crect x='21' y='13' width='5' height='4' rx='1' fill='%237BBDE8'/%3E%3C!-- Magnifying glass --%3E%3Ccircle cx='36' cy='12' r='8' stroke='%230A4174' stroke-width='2.5' fill='none'/%3E%3Cline x1='42' y1='18' x2='48' y2='24' stroke='%230A4174' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E",
-                                                style={"height": "40px"},
-                                            ),
-                                            html.Div(
-                                                "Buyer's Guide",
-                                                style={
-                                                    "fontSize": "18px", 
-                                                    "fontWeight": 700, 
-                                                    "color": "#001D39",
-                                                    "letterSpacing": "-0.3px",
-                                                },
+                                                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 2L2 7l10 5 10-5-10-5z'/%3E%3Cpath d='M2 17l10 5 10-5'/%3E%3Cpath d='M2 12l10 5 10-5'/%3E%3C/svg%3E",
+                                                style={"width": "40px", "height": "40px"},
                                             ),
                                         ],
+                                    ),
+                                    html.Div(
+                                        "Buyer's Guide",
+                                        style={
+                                            "fontSize": "22px", 
+                                            "fontWeight": 700, 
+                                            "color": "#001D39",
+                                            "letterSpacing": "-0.3px",
+                                            "marginTop": "48px",
+                                            "marginBottom": "16px",
+                                            "textAlign": "center",
+                                        },
                                     ),
                                     html.P(
                                         "Smart Buyer Matrix helps you find the best value deals. Use advanced filters to narrow down "
                                         "your search, and discover vehicles priced significantly below their model average. Get real-time "
                                         "recommendations for the best deals available.",
-                                        style={"fontSize": "14px", "lineHeight": "1.8", "color": "#64748B", "margin": 0},
+                                        style={"fontSize": "16px", "lineHeight": "1.6", "color": "#64748B", "margin": 0, "textAlign": "center"},
                                     ),
                                 ],
                             ),
@@ -1380,21 +1472,22 @@ def render_tab(active_tab):
                     ],
                 ),
                 
-                # Team Section - Refined
+                # Team Section - Redesigned with profile images
                 html.Div(
                     className="graph-card",
                     style={
-                        "padding": "36px", 
-                        "marginTop": "28px",
+                        "padding": "48px 36px", 
+                        "marginTop": "72px",
                         "background": "linear-gradient(145deg, #FFFFFF 0%, #F8FBFC 100%)",
+                        "borderRadius": "16px",
                     },
                     children=[
                         html.H2(
                             "DEVELOPED BY",
                             style={
-                                "fontSize": "11px",
+                                "fontSize": "17px",
                                 "fontWeight": 700,
-                                "marginBottom": "28px",
+                                "marginBottom": "40px",
                                 "color": "#64748B",
                                 "textTransform": "uppercase",
                                 "letterSpacing": "2px",
@@ -1405,61 +1498,142 @@ def render_tab(active_tab):
                             style={
                                 "display": "flex",
                                 "justifyContent": "center",
-                                "gap": "12px",
+                                "alignItems": "flex-start",
+                                "gap": "40px",
                                 "flexWrap": "wrap",
                             },
                             children=[
+                                # Gaya Gur
                                 html.Div(
-                                    "Gaya Gur",
                                     style={
-                                        "background": "#FFFFFF",
-                                        "border": "1px solid rgba(10, 65, 116, 0.1)",
-                                        "borderRadius": "10px",
-                                        "padding": "12px 24px",
-                                        "fontSize": "14px",
-                                        "fontWeight": 600,
-                                        "color": "#001D39",
-                                        "boxShadow": "0 2px 8px rgba(0, 29, 57, 0.04)",
+                                        "display": "flex",
+                                        "flexDirection": "column",
+                                        "alignItems": "center",
+                                        "gap": "16px",
                                     },
+                                    children=[
+                                        html.Img(
+                                            src=app.get_asset_url("gaya.png"),
+                                            style={
+                                                "width": "110px",
+                                                "height": "110px",
+                                                "borderRadius": "50%",
+                                                "border": "3px solid #4A90D9",
+                                                "boxShadow": "0 4px 16px rgba(74, 144, 217, 0.2)",
+                                                "objectFit": "cover",
+                                                "transition": "all 0.3s ease",
+                                            },
+                                            className="team-member-image",
+                                        ),
+                                        html.Div(
+                                            "Gaya Gur",
+                                            style={
+                                                "fontSize": "15px",
+                                                "fontWeight": 600,
+                                                "color": "#001D39",
+                                                "textAlign": "center",
+                                            },
+                                        ),
+                                    ],
                                 ),
+                                # Moran Shavit
                                 html.Div(
-                                    "Moran Shavit",
                                     style={
-                                        "background": "#FFFFFF",
-                                        "border": "1px solid rgba(10, 65, 116, 0.1)",
-                                        "borderRadius": "10px",
-                                        "padding": "12px 24px",
-                                        "fontSize": "14px",
-                                        "fontWeight": 600,
-                                        "color": "#001D39",
-                                        "boxShadow": "0 2px 8px rgba(0, 29, 57, 0.04)",
+                                        "display": "flex",
+                                        "flexDirection": "column",
+                                        "alignItems": "center",
+                                        "gap": "16px",
                                     },
+                                    children=[
+                                        html.Img(
+                                            src=app.get_asset_url("moran.png"),
+                                            style={
+                                                "width": "110px",
+                                                "height": "110px",
+                                                "borderRadius": "50%",
+                                                "border": "3px solid #4A90D9",
+                                                "boxShadow": "0 4px 16px rgba(74, 144, 217, 0.2)",
+                                                "objectFit": "cover",
+                                                "transition": "all 0.3s ease",
+                                            },
+                                            className="team-member-image",
+                                        ),
+                                        html.Div(
+                                            "Moran Shavit",
+                                            style={
+                                                "fontSize": "15px",
+                                                "fontWeight": 600,
+                                                "color": "#001D39",
+                                                "textAlign": "center",
+                                            },
+                                        ),
+                                    ],
                                 ),
+                                # Matias Guernik
                                 html.Div(
-                                    "Matias Guernik",
                                     style={
-                                        "background": "#FFFFFF",
-                                        "border": "1px solid rgba(10, 65, 116, 0.1)",
-                                        "borderRadius": "10px",
-                                        "padding": "12px 24px",
-                                        "fontSize": "14px",
-                                        "fontWeight": 600,
-                                        "color": "#001D39",
-                                        "boxShadow": "0 2px 8px rgba(0, 29, 57, 0.04)",
+                                        "display": "flex",
+                                        "flexDirection": "column",
+                                        "alignItems": "center",
+                                        "gap": "16px",
                                     },
+                                    children=[
+                                        html.Img(
+                                            src=app.get_asset_url("matias.png"),
+                                            style={
+                                                "width": "110px",
+                                                "height": "110px",
+                                                "borderRadius": "50%",
+                                                "border": "3px solid #4A90D9",
+                                                "boxShadow": "0 4px 16px rgba(74, 144, 217, 0.2)",
+                                                "objectFit": "cover",
+                                                "transition": "all 0.3s ease",
+                                            },
+                                            className="team-member-image",
+                                        ),
+                                        html.Div(
+                                            "Matias Guernik",
+                                            style={
+                                                "fontSize": "15px",
+                                                "fontWeight": 600,
+                                                "color": "#001D39",
+                                                "textAlign": "center",
+                                            },
+                                        ),
+                                    ],
                                 ),
+                                # Tamar Hagbi
                                 html.Div(
-                                    "Tamar Hagbi",
                                     style={
-                                        "background": "#FFFFFF",
-                                        "border": "1px solid rgba(10, 65, 116, 0.1)",
-                                        "borderRadius": "10px",
-                                        "padding": "12px 24px",
-                                        "fontSize": "14px",
-                                        "fontWeight": 600,
-                                        "color": "#001D39",
-                                        "boxShadow": "0 2px 8px rgba(0, 29, 57, 0.04)",
+                                        "display": "flex",
+                                        "flexDirection": "column",
+                                        "alignItems": "center",
+                                        "gap": "16px",
                                     },
+                                    children=[
+                                        html.Img(
+                                            src=app.get_asset_url("tamar.png"),
+                                            style={
+                                                "width": "110px",
+                                                "height": "110px",
+                                                "borderRadius": "50%",
+                                                "border": "3px solid #4A90D9",
+                                                "boxShadow": "0 4px 16px rgba(74, 144, 217, 0.2)",
+                                                "objectFit": "cover",
+                                                "transition": "all 0.3s ease",
+                                            },
+                                            className="team-member-image",
+                                        ),
+                                        html.Div(
+                                            "Tamar Hagbi",
+                                            style={
+                                                "fontSize": "15px",
+                                                "fontWeight": 600,
+                                                "color": "#001D39",
+                                                "textAlign": "center",
+                                            },
+                                        ),
+                                    ],
                                 ),
                             ],
                         ),
@@ -2022,74 +2196,74 @@ def render_tab(active_tab):
                                                 "display": "flex",
                                                 "justifyContent": "center",
                                                 "alignItems": "center",
-                                                "gap": "24px",
-                                                "padding": "14px 20px",
-                                                "marginTop": "8px",
-                                                "background": "rgba(248, 250, 252, 0.8)",
+                                                "gap": "28px",
+                                                "padding": "16px 24px",
+                                                "marginTop": "24px",
+                                                "background": "#f1f5f9",
                                                 "borderRadius": "8px",
-                                                "border": "1px solid rgba(0, 29, 57, 0.06)",
+                                                "border": "1px solid #e2e8f0",
                                                 "flexWrap": "wrap",
                                             },
                                             children=[
                                                 html.Span(
                                                     "Value Score:",
                                                     style={
-                                                        "fontSize": "12px",
-                                                        "fontWeight": "600",
-                                                        "color": "#64748B",
-                                                        "marginRight": "4px",
+                                                        "fontSize": "15px",
+                                                        "fontWeight": "700",
+                                                        "color": "#1F2937",
+                                                        "marginRight": "8px",
                                                     }
                                                 ),
                                                 # Excellent Value - Green
                                                 html.Div(
-                                                    style={"display": "flex", "alignItems": "center", "gap": "6px"},
+                                                    style={"display": "flex", "alignItems": "center", "gap": "8px"},
                                                     children=[
                                                         html.Div(style={
-                                                            "width": "12px",
-                                                            "height": "12px",
+                                                            "width": "14px",
+                                                            "height": "14px",
                                                             "borderRadius": "50%",
                                                             "background": "#16A34A",
                                                         }),
-                                                        html.Span("Excellent (≥75)", style={"fontSize": "11px", "color": "#374151", "fontWeight": "500"}),
+                                                        html.Span("Excellent (≥75)", style={"fontSize": "13px", "color": "#374151", "fontWeight": "500"}),
                                                     ]
                                                 ),
                                                 # Good Value - Lime
                                                 html.Div(
-                                                    style={"display": "flex", "alignItems": "center", "gap": "6px"},
+                                                    style={"display": "flex", "alignItems": "center", "gap": "8px"},
                                                     children=[
                                                         html.Div(style={
-                                                            "width": "12px",
-                                                            "height": "12px",
+                                                            "width": "14px",
+                                                            "height": "14px",
                                                             "borderRadius": "50%",
                                                             "background": "#65A30D",
                                                         }),
-                                                        html.Span("Good (55-74)", style={"fontSize": "11px", "color": "#374151", "fontWeight": "500"}),
+                                                        html.Span("Good (55-74)", style={"fontSize": "13px", "color": "#374151", "fontWeight": "500"}),
                                                     ]
                                                 ),
                                                 # Fair Value - Yellow
                                                 html.Div(
-                                                    style={"display": "flex", "alignItems": "center", "gap": "6px"},
+                                                    style={"display": "flex", "alignItems": "center", "gap": "8px"},
                                                     children=[
                                                         html.Div(style={
-                                                            "width": "12px",
-                                                            "height": "12px",
+                                                            "width": "14px",
+                                                            "height": "14px",
                                                             "borderRadius": "50%",
                                                             "background": "#EAB308",
                                                         }),
-                                                        html.Span("Fair (35-54)", style={"fontSize": "11px", "color": "#374151", "fontWeight": "500"}),
+                                                        html.Span("Fair (35-54)", style={"fontSize": "13px", "color": "#374151", "fontWeight": "500"}),
                                                     ]
                                                 ),
                                                 # Poor Value - Red
                                                 html.Div(
-                                                    style={"display": "flex", "alignItems": "center", "gap": "6px"},
+                                                    style={"display": "flex", "alignItems": "center", "gap": "8px"},
                                                     children=[
                                                         html.Div(style={
-                                                            "width": "12px",
-                                                            "height": "12px",
+                                                            "width": "14px",
+                                                            "height": "14px",
                                                             "borderRadius": "50%",
                                                             "background": "#DC2626",
                                                         }),
-                                                        html.Span("Poor (<35)", style={"fontSize": "11px", "color": "#374151", "fontWeight": "500"}),
+                                                        html.Span("Poor (<35)", style={"fontSize": "13px", "color": "#374151", "fontWeight": "500"}),
                                                     ]
                                                 ),
                                             ],
@@ -2473,6 +2647,14 @@ def open_vehicle_modal(n_clicks_list, close_clicks, deals_data, is_open):
         
         # Validate index
         if card_index is None or card_index < 0 or card_index >= len(deals_data):
+            return is_open, "Vehicle Details", html.Div()
+        
+        # CRITICAL: Only open modal if there was an actual click (n_clicks > 0)
+        # This prevents auto-opening on page load or state changes
+        if not n_clicks_list or card_index >= len(n_clicks_list):
+            return is_open, "Vehicle Details", html.Div()
+        
+        if not n_clicks_list[card_index] or n_clicks_list[card_index] <= 0:
             return is_open, "Vehicle Details", html.Div()
     except (json.JSONDecodeError, KeyError, ValueError, IndexError):
         # Fallback: if parsing fails, return current state
@@ -3048,16 +3230,15 @@ def update_model(manufacturers):
                                         ),
                                         html.Div(
                                             [
-                                                html.Strong("Note: ", style={"color": "#6B9080"}),
-                                                html.Span("We normalize the score per 10,000 km to ensure fair comparison between high and low mileage vehicles. We use the average of the top and bottom 20% of listings to eliminate outliers and ensure statistical stability.", style={"color": "#6B7280"}),
+                                                html.Strong("Calculation Method: ", style={"color": "#1F2937", "fontSize": "15px", "fontWeight": "700"}),
+                                                html.Span("We normalize the score per 10,000 km to ensure fair comparison between high and low mileage vehicles. We use the average of the top and bottom 20% of listings to eliminate outliers and ensure statistical stability.", style={"color": "#374151", "fontSize": "14px"}),
                                             ],
                                             style={
-                                                "background": "rgba(107, 144, 128, 0.08)",
-                                                "padding": "12px",
+                                                "background": "#f1f5f9",
+                                                "padding": "16px 20px",
                                                 "borderRadius": "8px",
-                                                "border": "1px solid rgba(107, 144, 128, 0.15)",
-                                                "fontSize": "13px",
-                                                "marginTop": "8px",
+                                                "border": "1px solid #e2e8f0",
+                                                "marginTop": "24px",
                                             },
                                         ),
                                     ]
@@ -3110,7 +3291,7 @@ def update_groups(ma, ya, ta, mb, yb, tb):
 
     # Determine which group is better for each metric (lower is better for Price per KM and Price Stability)
     def get_advantage(metric_name, val_a, val_b):
-        if "Price per KM" in metric_name or "Price Stability" in metric_name:
+        if "Price per KM" in metric_name or "Price Stability" in metric_name or "(σ)" in metric_name:
             # Lower is better
             return "A" if val_a < val_b else "B" if val_b < val_a else "Tie"
         else:
@@ -3120,8 +3301,8 @@ def update_groups(ma, ya, ta, mb, yb, tb):
     # Generate comparison insight
     price_per_km_a = metrics_data['Price per KM'][0]
     price_per_km_b = metrics_data['Price per KM'][1]
-    stability_a = metrics_data['Price Stability'][0]
-    stability_b = metrics_data['Price Stability'][1]
+    stability_a = metrics_data['Price Stability (σ)'][0]
+    stability_b = metrics_data['Price Stability (σ)'][1]
 
     insights = []
     if price_per_km_a < price_per_km_b:
@@ -3143,23 +3324,21 @@ def update_groups(ma, ya, ta, mb, yb, tb):
             winning_group = "B"
 
     if insights:
-        # Build insight with colored group name (muted colors)
+        # Build insight with colored group name (vibrant colors)
         group_name_span = html.Span(
             f"Group {winning_group}",
             style={
-                "color": "#6B8CAE" if winning_group == "A" else "#9B8AA8",  # Muted steel blue / lavender
+                "color": "#4A90D9" if winning_group == "A" else "#9F7AEA",  # Vibrant ocean blue / warm purple
                 "fontWeight": 700,
             }
         )
         insight_content = [
-            html.Span("💡 ", style={"fontSize": "18px", "marginRight": "8px"}),
             group_name_span,
             html.Span(f" shows {', '.join(insights[:2])}.", style={"fontWeight": 500}),
         ]
         insight_text_structured = insight_content
     else:
         insight_text_structured = [
-            html.Span("💡 ", style={"fontSize": "18px", "marginRight": "8px"}),
             html.Span("Both groups show similar value characteristics.", style={"fontWeight": 500}),
         ]
 
@@ -3171,7 +3350,7 @@ def update_groups(ma, ya, ta, mb, yb, tb):
                 html.Div(
                     [
                         html.Div("A", className="group-label-badge",
-                                 style={"background": "rgba(91, 155, 213, 0.2)", "color": COLORS["blue"]}),
+                                 style={"background": "rgba(74, 144, 217, 0.2)", "color": "#4A90D9"}),
                         html.Div(
                             [
                                 html.Div(ma[:30] + ("..." if len(ma) > 30 else ""), className="group-name"),
@@ -3188,7 +3367,7 @@ def update_groups(ma, ya, ta, mb, yb, tb):
                 html.Div(
                     [
                         html.Div("B", className="group-label-badge",
-                                 style={"background": "rgba(168, 85, 247, 0.2)", "color": COLORS["purple"]}),
+                                 style={"background": "rgba(159, 122, 234, 0.2)", "color": "#9F7AEA"}),
                                         html.Div(
                             [
                                 html.Div(mb[:30] + ("..." if len(mb) > 30 else ""), className="group-name"),
@@ -3219,7 +3398,7 @@ def update_groups(ma, ya, ta, mb, yb, tb):
     metric_rows = []
     metric_labels = {
         "Price per KM": "Price per KM",
-        "Price Stability": "Price Stability (σ)",
+        "Price Stability (σ)": "Price Stability (σ)",
         "Avg Mileage": "Avg Mileage",
         "Avg Price": "Avg Price",
     }
@@ -3243,25 +3422,71 @@ def update_groups(ma, ya, ta, mb, yb, tb):
             formatted_a = f"₪{val_a:,.0f}"
             formatted_b = f"₪{val_b:,.0f}"
 
-        # Apply subtle emphasis to better value (typographic only)
-        value_a_class = "comparison-metric-value"
-        value_b_class = "comparison-metric-value"
-        if advantage == "A":
-            value_a_class = "comparison-metric-value comparison-metric-emphasized"
-        elif advantage == "B":
-            value_b_class = "comparison-metric-value comparison-metric-emphasized"
+        # Determine winner styling - simple bold + checkmark in circle
+        # Checkmark badge for Group A (blue circle with white checkmark)
+        checkmark_a = html.Span(
+            html.Img(
+                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E",
+                style={"width": "14px", "height": "14px"},
+            ),
+            style={
+                "display": "inline-flex",
+                "alignItems": "center",
+                "justifyContent": "center",
+                "width": "22px",
+                "height": "22px",
+                "borderRadius": "50%",
+                "backgroundColor": "#3B82F6",
+                "marginLeft": "8px",
+                "verticalAlign": "middle",
+            },
+        ) if advantage == "A" else None
+        
+        # Checkmark badge for Group B (purple circle with white checkmark)
+        checkmark_b = html.Span(
+            html.Img(
+                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E",
+                style={"width": "14px", "height": "14px"},
+            ),
+            style={
+                "display": "inline-flex",
+                "alignItems": "center",
+                "justifyContent": "center",
+                "width": "22px",
+                "height": "22px",
+                "borderRadius": "50%",
+                "backgroundColor": "#8B5CF6",
+                "marginLeft": "8px",
+                "verticalAlign": "middle",
+            },
+        ) if advantage == "B" else None
+
+        # Build value divs with optional bold and checkmark
+        value_a_content = [
+            html.Span(formatted_a, style={"fontWeight": 700 if advantage == "A" else 500}),
+        ]
+        if checkmark_a:
+            value_a_content.append(checkmark_a)
+        
+        value_b_content = [
+            html.Span(formatted_b, style={"fontWeight": 700 if advantage == "B" else 500}),
+        ]
+        if checkmark_b:
+            value_b_content.append(checkmark_b)
 
         metric_rows.append(
             html.Div(
                 [
                     html.Div(metric_label, className="comparison-metric-label"),
                     html.Div(
-                        formatted_a,
-                        className=value_a_class,
+                        value_a_content,
+                        className="comparison-metric-value comparison-metric-value-center",
+                        style={"display": "flex", "alignItems": "center", "justifyContent": "center"},
                     ),
                     html.Div(
-                        formatted_b,
-                        className=value_b_class,
+                        value_b_content,
+                        className="comparison-metric-value comparison-metric-value-center",
+                        style={"display": "flex", "alignItems": "center", "justifyContent": "center"},
                     ),
                 ],
                 className="comparison-table-row",
@@ -3272,9 +3497,17 @@ def update_groups(ma, ya, ta, mb, yb, tb):
         [
             html.Div(
                 [
-                    html.Div("📊 Metric", className="comparison-table-header"),
-                    html.Div("🔵 Group A", className="comparison-table-header comparison-table-header-right"),
-                    html.Div("🟣 Group B", className="comparison-table-header comparison-table-header-right"),
+                    html.Div("Metric", className="comparison-table-header"),
+                    html.Div(
+                        "Group A", 
+                        className="comparison-table-header comparison-table-header-center",
+                        style={"color": "#4A90D9"}
+                    ),
+                    html.Div(
+                        "Group B", 
+                        className="comparison-table-header comparison-table-header-center",
+                        style={"color": "#9F7AEA"}
+                    ),
                 ],
                 className="comparison-table-header-row",
             ),
