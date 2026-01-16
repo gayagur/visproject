@@ -2231,6 +2231,8 @@ def update_buyer_guide(vehicles, price_range, max_mileage, country, transmission
 )
 def open_vehicle_modal(n_clicks_list, close_clicks, deals_data, is_open):
     ctx = callback_context
+    
+    # If nothing was triggered, keep modal closed
     if not ctx.triggered:
         return False, "Vehicle Details", html.Div()
 
@@ -2239,15 +2241,17 @@ def open_vehicle_modal(n_clicks_list, close_clicks, deals_data, is_open):
     if "vehicle-modal-close-btn" in triggered_id:
         return False, "Vehicle Details", html.Div()
 
-    if not deals_data:
-        return is_open, "Vehicle Details", html.Div()
+    # Only proceed if a deal-card was actually clicked
+    if "deal-card" not in triggered_id:
+        # If something else triggered (not a card click), keep modal closed
+        return False, "Vehicle Details", html.Div()
 
-    # Find which card was clicked by extracting index from triggered_id
-    # triggered_id format: '{"type":"deal-card","index":2}.n_clicks'
-    if "deal-card" not in triggered_id or not deals_data:
-        return is_open, "Vehicle Details", html.Div()
+    # Must have deals data to show
+    if not deals_data or len(deals_data) == 0:
+        return False, "Vehicle Details", html.Div()
 
     # Extract the index from the triggered_id JSON string
+    # triggered_id format: '{"type":"deal-card","index":2}.n_clicks'
     import json
     try:
         # Parse the JSON part of the triggered_id (before .n_clicks)
@@ -2257,10 +2261,20 @@ def open_vehicle_modal(n_clicks_list, close_clicks, deals_data, is_open):
         
         # Validate index
         if card_index is None or card_index < 0 or card_index >= len(deals_data):
-            return is_open, "Vehicle Details", html.Div()
+            return False, "Vehicle Details", html.Div()
+        
+        # Additional check: verify that this card actually has a click
+        # (n_clicks_list should have a value > 0 for this index)
+        if not n_clicks_list or card_index >= len(n_clicks_list):
+            return False, "Vehicle Details", html.Div()
+        
+        # Only open if there's an actual click (n_clicks > 0)
+        if not n_clicks_list[card_index] or n_clicks_list[card_index] <= 0:
+            return False, "Vehicle Details", html.Div()
+            
     except (json.JSONDecodeError, KeyError, ValueError, IndexError):
-        # Fallback: if parsing fails, return current state
-        return is_open, "Vehicle Details", html.Div()
+        # Fallback: if parsing fails, keep modal closed
+        return False, "Vehicle Details", html.Div()
 
     vehicle_data = deals_data[card_index]
 
