@@ -139,7 +139,7 @@ car_template = go.layout.Template(
             xanchor="center",
             y=0.95,
             yanchor="top",
-            font=dict(size=18, color="#001D39", family="Inter", weight=700),
+            font=dict(size=18, color="#001D39", family="Inter"),
         ),
         legend=dict(
             orientation="h",
