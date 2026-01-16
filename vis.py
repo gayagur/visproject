@@ -733,15 +733,17 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
                     dff.loc[dff["vehicle"] == model, "ppk_listing"] - mean_ppk
                 ) / std_ppk
 
-    # Keep deals that are at least 0.5 std below their model mean PPK
+    # Always show top 10 best deals (lowest z-score = best value relative to model average)
+    # Remove threshold filter - just take the top deals by z-score
     # Lower PPK = better value, so negative z-score is good
-    best_deals = dff[dff["ppk_zscore"] < -0.5].nsmallest(max_results, "ppk_zscore")
-
-    if len(best_deals) == 0:
+    # Filter out NaN z-scores (cars without enough data for comparison)
+    dff_valid = dff[dff["ppk_zscore"].notna()].copy()
+    
+    if len(dff_valid) == 0:
         return html.Div(
             [
                 html.H3(
-                    "No significant deals found",
+                    "No deals available",
                     style={
                         "fontSize": "18px",
                         "fontWeight": 600,
@@ -750,13 +752,15 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
                     },
                 ),
                 html.P(
-                    "All vehicles are fairly priced within their model range",
+                    "Insufficient data to compare vehicles",
                     style={"fontSize": "14px", "color": "#718096"},
                 ),
             ],
             style={"padding": "32px", "textAlign": "center"},
         )
-
+    
+    # Sort by z-score (lowest = best) and take top N
+    best_deals = dff_valid.nsmallest(max_results, "ppk_zscore")
     best_deals = best_deals.sort_values("ppk_zscore")
 
     # CRITICAL: Calculate Value Score normalization based on FULL FILTERED dataset, not just best_deals
@@ -2683,8 +2687,11 @@ def update_buyer_guide(vehicles, price_range, max_mileage, country, transmission
                     dff_deals_filtered.loc[dff_deals_filtered["vehicle"] == model, "ppk_listing"] - mean_ppk
                 ) / std_ppk
 
-    best_deals_data = dff_deals_filtered[dff_deals_filtered["ppk_zscore"] < -0.5].nsmallest(10, "ppk_zscore")
-    best_deals_data = best_deals_data.sort_values("ppk_zscore")
+    # Always get top 10 best deals (no threshold filter)
+    # Filter out NaN z-scores and take top 10 by z-score (lowest = best)
+    dff_deals_valid = dff_deals_filtered[dff_deals_filtered["ppk_zscore"].notna()].copy()
+    best_deals_data = dff_deals_valid.nsmallest(10, "ppk_zscore") if len(dff_deals_valid) > 0 else pd.DataFrame()
+    best_deals_data = best_deals_data.sort_values("ppk_zscore") if len(best_deals_data) > 0 else pd.DataFrame()
 
     # Convert to dict for storage
     deals_store_data = best_deals_data.to_dict("records") if len(best_deals_data) > 0 else {}
