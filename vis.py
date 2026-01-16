@@ -208,8 +208,8 @@ app.index_string = """
                 background: #FFFFFF !important;
             }
             .deal-card-hover:hover {
-                transform: translateY(-8px) !important;
-                box-shadow: 0 16px 40px rgba(0, 29, 57, 0.12) !important;
+                transform: translateY(-4px) !important;
+                box-shadow: 0 12px 32px rgba(0, 29, 57, 0.15) !important;
                 border-color: #3B82F6 !important;
                 z-index: 10 !important;
             }
@@ -699,10 +699,11 @@ def fig_smart_buyer_matrix(
     return fig, displayed_vehicles
 
 
-def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed_vehicles: list = None):
+def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed_vehicles: list = None, full_dataset: pd.DataFrame = None):
     # Best Deals: compute a per-model z-score for price_per_km and surface listings that
     # are significantly cheaper per km than their model mean.
     # Only shows deals from vehicles that are displayed in the Smart Buyer Matrix.
+    # IMPORTANT: Value Score normalization uses the FULL dataset, not just filtered results.
 
     dff = data.copy()
     
@@ -758,23 +759,56 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
 
     best_deals = best_deals.sort_values("ppk_zscore")
 
-    # Calculate normalized values for color (0-1 range)
-    # Invert z-score so more negative (better deal) = higher normalized value
-    z_scores_neg = -best_deals["ppk_zscore"].values
-    z_min, z_max = z_scores_neg.min(), z_scores_neg.max()
+    # CRITICAL: Calculate Value Score normalization based on FULL FILTERED dataset, not just best_deals
+    # This ensures ratings are relative to all filtered cars (all cars in the scatter chart),
+    # not just the top 10 deals being displayed
+    # Ratings are based on percentiles of the full filtered dataset distribution
+    z_min = None
+    z_max = None
+    
+    if full_dataset is not None and len(full_dataset) > 0:
+        # Calculate z-scores for the full filtered dataset to get proper normalization baseline
+        full_dff = full_dataset.copy()
+        full_dff["ppk_listing"] = full_dff["price"] / full_dff["mileage"].clip(lower=1.0)
+        full_dff["ppk_zscore"] = np.nan
+        
+        for model in full_dff["vehicle"].unique():
+            model_data = full_dff[full_dff["vehicle"] == model]
+            if len(model_data) >= 2:
+                mean_ppk = model_data["ppk_listing"].mean()
+                std_ppk = model_data["ppk_listing"].std()
+                if std_ppk > 0:
+                    full_dff.loc[full_dff["vehicle"] == model, "ppk_zscore"] = (
+                        full_dff.loc[full_dff["vehicle"] == model, "ppk_listing"] - mean_ppk
+                    ) / std_ppk
+        
+        # Get all valid z-scores from full filtered dataset (exclude NaN)
+        all_z_scores_neg = -full_dff["ppk_zscore"].dropna()
+        if len(all_z_scores_neg) > 0:
+            # Calculate min/max from full filtered dataset for normalization
+            z_min = all_z_scores_neg.min()
+            z_max = all_z_scores_neg.max()
+    
+    # Fallback: if full_dataset not provided or no valid z-scores, use best_deals
+    if z_min is None or z_max is None:
+        z_scores_neg = -best_deals["ppk_zscore"].values
+        z_min = z_scores_neg.min()
+        z_max = z_scores_neg.max()
+    
+    # Calculate Value Score for each best deal using the normalization from full filtered dataset
+    z_scores_neg_best = -best_deals["ppk_zscore"].values
     if z_max > z_min:
-        z_normalized = (z_scores_neg - z_min) / (z_max - z_min)
+        value_scores = 100 * (z_scores_neg_best - z_min) / (z_max - z_min)
     else:
-        z_normalized = np.ones(len(z_scores_neg)) * 0.5
+        value_scores = np.ones(len(z_scores_neg_best)) * 50
 
     # Create cards in a grid (4 per row)
     cards = []
     for idx, (_, row) in enumerate(best_deals.iterrows()):
-        z_norm = z_normalized[idx]
         z_score_neg = -row["ppk_zscore"]
         
-        # Convert normalized z-score (0-1) to Value Score (0-100) to match legend thresholds
-        value_score = z_norm * 100
+        # Use Value Score calculated from full dataset normalization
+        value_score = value_scores[idx]
         
         # Color palette matching Value Score legend EXACTLY
         # Use same thresholds as legend: ≥75, 55-74, 35-54, <35
@@ -793,24 +827,34 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
         
         # Store row index in the card ID for callback
         card_id = f"deal-card-{idx}"
+        # Determine rating badge background color (lighter version of rating color)
+        rating_bg_colors = {
+            "Excellent": "rgba(34, 197, 94, 0.15)",
+            "Good": "rgba(132, 204, 22, 0.15)",
+            "Fair": "rgba(234, 179, 8, 0.15)",
+            "Poor": "rgba(239, 68, 68, 0.15)",
+        }
+        rating_bg = rating_bg_colors.get(quality, "rgba(156, 163, 175, 0.15)")
+        
         cards.append(
             html.Div(
                 id={"type": "deal-card", "index": idx},
                 className="graph-card deal-card-hover",
                 n_clicks=0,
                 style={
-                    "padding": "20px",
-                    "minWidth": "260px",
-                    "width": "260px",
+                    "padding": "0",
+                    "minWidth": "280px",
+                    "width": "280px",
                     "flexShrink": 0,
                     "border": "1.5px solid #93C5FD",
-                    "borderRadius": "10px",
+                    "borderRadius": "12px",
                     "background": "#FFFFFF",
-                    "boxShadow": "0 1px 3px rgba(0, 0, 0, 0.05)",
+                    "boxShadow": "0 2px 8px rgba(0, 0, 0, 0.08)",
                     "transition": "all 0.3s ease",
                     "cursor": "pointer",
                     "marginRight": "14px",
                     "position": "relative",
+                    "overflow": "hidden",
                 },
                 children=[
                     # Hover text overlay
@@ -836,64 +880,101 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
                             "boxShadow": "0 8px 24px rgba(0, 29, 57, 0.2)",
                         },
                     ),
-                    # Color bar at top
+                    # Ranking number in top-right corner
                     html.Div(
+                        f"#{idx + 1}",
                         style={
-                            "width": "40px",
-                            "height": "4px",
-                            "background": color,
-                            "borderRadius": "2px",
-                            "margin": "0 auto 16px auto",
+                            "position": "absolute",
+                            "top": "12px",
+                            "right": "12px",
+                            "fontSize": "14px",
+                            "fontWeight": 700,
+                            "color": "#64748B",
+                            "zIndex": 5,
+                            "background": "rgba(255, 255, 255, 0.9)",
+                            "padding": "4px 8px",
+                            "borderRadius": "6px",
                         },
                     ),
+                    # Thick color bar at top (full width, rounded top corners)
+                    html.Div(
+                        style={
+                            "width": "100%",
+                            "height": "10px",
+                            "background": f"linear-gradient(135deg, {color} 0%, {color}dd 100%)",
+                            "borderRadius": "12px 12px 0 0",
+                            "marginBottom": "0",
+                        },
+                    ),
+                    # Card content with padding
+                    html.Div(
+                        style={
+                            "padding": "24px",
+                        },
+                        children=[
+                            # Car name
                     html.Div(
                         row["vehicle"][:30] + ("..." if len(row["vehicle"]) > 30 else ""),
                         style={
-                            "fontSize": "15px",
-                            "fontWeight": 700,
-                            "color": "#1A202C",
+                                    "fontSize": "19px",
+                                    "fontWeight": 600,
+                                    "color": "#1A202C",
                             "textAlign": "center",
-                            "marginBottom": "16px",
-                            "minHeight": "40px",
+                                    "marginBottom": "20px",
+                                    "minHeight": "50px",
+                                    "lineHeight": "1.4",
                         },
                     ),
+                            # Price - large and bold
                     html.Div(
-                        [
-                            html.Span("Price ", style={"color": "#718096", "fontSize": "12px"}),
-                            html.Span(
                                 f"₪{row['price']:,.0f}",
-                                style={"color": "#1A202C", "fontWeight": 700, "fontSize": "18px"},
+                                style={
+                                    "color": "#0F172A",
+                                    "fontWeight": 700,
+                                    "fontSize": "26px",
+                                    "textAlign": "center",
+                                    "marginBottom": "16px",
+                                },
                             ),
-                        ],
-                        style={"marginBottom": "12px", "textAlign": "center"},
-                    ),
+                            # Below avg text - subtle
                     html.Div(
-                        f"Below avg: {z_score_neg:.2f} std",
-                        style={
-                            "color": "#1A202C",
-                            "fontSize": "12px",
-                            "marginBottom": "10px",
-                            "textAlign": "center",
-                        },
-                    ),
+                                f"Below avg: {z_score_neg:.2f} std",
+                                style={
+                                    "color": "#64748B",
+                                    "fontSize": "14px",
+                                    "marginBottom": "16px",
+                                    "textAlign": "center",
+                                },
+                            ),
+                            # Rating badge - pill shape
                     html.Div(
                         [
-                            html.Span("Rating: ", style={"color": "#1A202C", "fontSize": "12px"}),
                             html.Span(
                                 quality,
-                                style={"color": color, "fontWeight": 600, "fontSize": "13px"},
+                                        style={
+                                            "color": color,
+                                            "fontWeight": 600,
+                                            "fontSize": "16px",
+                                            "padding": "6px 14px",
+                                            "backgroundColor": rating_bg,
+                                            "borderRadius": "20px",
+                                            "display": "inline-block",
+                                        },
+                                    ),
+                                ],
+                                style={"textAlign": "center", "marginBottom": "12px"},
                             ),
-                        ],
-                        style={"textAlign": "center", "marginBottom": "6px"},
-                    ),
+                            # Bottom text
                     html.Div(
-                        "Significantly below model average",
+                                "Significantly below model average",
                         style={
                             "color": "#9CA3AF",
-                            "fontSize": "10px",
+                            "fontSize": "11px",
                             "textAlign": "center",
                             "fontStyle": "italic",
                         },
+                            ),
+                        ],
                     ),
                 ],
             )
@@ -1093,7 +1174,7 @@ def fig_group_comparison(group_a: pd.DataFrame, group_b: pd.DataFrame):
                 for m in metrics
             ],
             textposition="inside",
-            textfont=dict(size=13, color="#FFFFFF", family="Inter", weight="bold"),
+            textfont=dict(size=13, color="#FFFFFF", family="Inter"),
             hovertemplate="<b>Group A</b><br>%{y}: %{text}<extra></extra>",
         )
     )
@@ -1115,7 +1196,7 @@ def fig_group_comparison(group_a: pd.DataFrame, group_b: pd.DataFrame):
                 for m in metrics
             ],
             textposition="inside",
-            textfont=dict(size=13, color="#FFFFFF", family="Inter", weight="bold"),
+            textfont=dict(size=13, color="#FFFFFF", family="Inter"),
             hovertemplate="<b>Group B</b><br>%{y}: %{text}<extra></extra>",
         )
     )
@@ -2577,7 +2658,9 @@ def update_buyer_guide(vehicles, price_range, max_mileage, country, transmission
         ]
 
     # Only show best deals from vehicles displayed in the matrix
-    deals_cards = create_best_deals_cards(dff_deals, displayed_vehicles=displayed_vehicles)
+    # Pass filtered dataset (dff_deals) as full_dataset for proper Value Score normalization
+    # This ensures ratings are relative to all filtered cars, not just the top 10
+    deals_cards = create_best_deals_cards(dff_deals, displayed_vehicles=displayed_vehicles, full_dataset=dff_deals)
 
     # Store best deals data for modal
     dff_deals_filtered = dff_deals.copy()
