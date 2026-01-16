@@ -23,6 +23,11 @@
 
 
 
+<div align="center">
+  <img src="assets/icon.png" width="600"/>
+</div>
+
+---
 ## 🔗 Live Dashboard (Render)
 
 <div align="center">
@@ -33,6 +38,7 @@
 
 *Public demo • Hosted on Render • Real-time analytics*
 Hosted on Render • Public demo • Available 24/7
+
 
 </div>
 
