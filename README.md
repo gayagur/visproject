@@ -167,17 +167,14 @@ The dashboard analyzes:
 
 <div align="center">
 
-### 🎓 Visualization Project - Year 3
+### 🎓 Visualization Project
 
-| Member |
-|:------:|
-| 👤 **Gaya Gur** | 
-| 👤 **Moran Shavit** | 
-| 👤 **Tamar Hagbi** | 
-| 👤 **Matias Guernik** |
+| | | | |
+|:------:|:------:|:------:|:------:|
+| <img src="assets/gaya.png" width="100" style="border-radius:50%"/> | <img src="assets/moran.png" width="100" style="border-radius:50%"/> | <img src="assets/matias.png" width="100" style="border-radius:50%"/> | <img src="assets/tamar.png" width="100" style="border-radius:50%"/> |
+| **Gaya Gur** | **Moran Shavit** | **Matias Guernik** | **Tamar Hagbi** |
 
 </div>
-
 ---
 
 ## 🎨 Design Philosophy
