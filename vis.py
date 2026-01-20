@@ -715,23 +715,24 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
     # PPK_listing = price / max(mileage_km, 1) to avoid division by zero
     dff["ppk_listing"] = dff["price"] / dff["mileage"].clip(lower=1.0)
     
-    # Calculate per-model statistics for PPK
-    dff["ppk_zscore"] = np.nan
-
-    for model in dff["vehicle"].unique():
-        model_data = dff[dff["vehicle"] == model]
-        # Need at least 2 listings to compute std (minimum for meaningful comparison)
-        if len(model_data) >= 2:
-            # Compute mean and std of PPK for this model
-            mean_ppk = model_data["ppk_listing"].mean()
-            std_ppk = model_data["ppk_listing"].std()
-            
-            if std_ppk > 0:
-                # Z-score: (PPK_listing - model_mean_PPK) / model_std_PPK
-                # Negative z-score = PPK below model mean = better deal
-                dff.loc[dff["vehicle"] == model, "ppk_zscore"] = (
-                    dff.loc[dff["vehicle"] == model, "ppk_listing"] - mean_ppk
-                ) / std_ppk
+    # Calculate per-model statistics for PPK using vectorized operations (much faster than loops)
+    # Group by vehicle and calculate mean and std for each model
+    model_stats = dff.groupby("vehicle")["ppk_listing"].agg(["mean", "std", "count"]).reset_index()
+    model_stats.columns = ["vehicle", "mean_ppk", "std_ppk", "count"]
+    
+    # Filter models with at least 2 listings and valid std
+    model_stats = model_stats[(model_stats["count"] >= 2) & (model_stats["std_ppk"] > 0)]
+    
+    # Merge stats back to dff
+    dff = dff.merge(model_stats[["vehicle", "mean_ppk", "std_ppk"]], on="vehicle", how="left")
+    
+    # Calculate z-score using vectorized operations
+    # Z-score: (PPK_listing - model_mean_PPK) / model_std_PPK
+    # Negative z-score = PPK below model mean = better deal
+    dff["ppk_zscore"] = (dff["ppk_listing"] - dff["mean_ppk"]) / dff["std_ppk"]
+    
+    # Clean up temporary columns
+    dff = dff.drop(columns=["mean_ppk", "std_ppk"])
 
     # Always show top 10 best deals (lowest z-score = best value relative to model average)
     # Remove threshold filter - just take the top deals by z-score
@@ -772,19 +773,22 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
     
     if full_dataset is not None and len(full_dataset) > 0:
         # Calculate z-scores for the full filtered dataset to get proper normalization baseline
+        # Use vectorized operations for better performance
         full_dff = full_dataset.copy()
         full_dff["ppk_listing"] = full_dff["price"] / full_dff["mileage"].clip(lower=1.0)
-        full_dff["ppk_zscore"] = np.nan
         
-        for model in full_dff["vehicle"].unique():
-            model_data = full_dff[full_dff["vehicle"] == model]
-            if len(model_data) >= 2:
-                mean_ppk = model_data["ppk_listing"].mean()
-                std_ppk = model_data["ppk_listing"].std()
-                if std_ppk > 0:
-                    full_dff.loc[full_dff["vehicle"] == model, "ppk_zscore"] = (
-                        full_dff.loc[full_dff["vehicle"] == model, "ppk_listing"] - mean_ppk
-                    ) / std_ppk
+        # Calculate per-model statistics using vectorized operations
+        full_model_stats = full_dff.groupby("vehicle")["ppk_listing"].agg(["mean", "std", "count"]).reset_index()
+        full_model_stats.columns = ["vehicle", "mean_ppk", "std_ppk", "count"]
+        
+        # Filter models with at least 2 listings and valid std
+        full_model_stats = full_model_stats[(full_model_stats["count"] >= 2) & (full_model_stats["std_ppk"] > 0)]
+        
+        # Merge stats back to full_dff
+        full_dff = full_dff.merge(full_model_stats[["vehicle", "mean_ppk", "std_ppk"]], on="vehicle", how="left")
+        
+        # Calculate z-score using vectorized operations
+        full_dff["ppk_zscore"] = (full_dff["ppk_listing"] - full_dff["mean_ppk"]) / full_dff["std_ppk"]
         
         # Get all valid z-scores from full filtered dataset (exclude NaN)
         all_z_scores_neg = -full_dff["ppk_zscore"].dropna()
@@ -2671,21 +2675,25 @@ def update_buyer_guide(vehicles, price_range, max_mileage, country, transmission
     if displayed_vehicles and len(displayed_vehicles) > 0:
         dff_deals_filtered = dff_deals_filtered[dff_deals_filtered["vehicle"].isin(displayed_vehicles)]
 
-    # Calculate Price per km (PPK) z-scores for best deals
+    # Calculate Price per km (PPK) z-scores for best deals using vectorized operations
     # PPK_listing = price / max(mileage_km, 1)
     dff_deals_filtered["ppk_listing"] = dff_deals_filtered["price"] / dff_deals_filtered["mileage"].clip(lower=1.0)
-    dff_deals_filtered["ppk_zscore"] = np.nan
     
-    for model in dff_deals_filtered["vehicle"].unique():
-        model_data = dff_deals_filtered[dff_deals_filtered["vehicle"] == model]
-        # Need at least 2 listings to compute std
-        if len(model_data) >= 2:
-            mean_ppk = model_data["ppk_listing"].mean()
-            std_ppk = model_data["ppk_listing"].std()
-            if std_ppk > 0:
-                dff_deals_filtered.loc[dff_deals_filtered["vehicle"] == model, "ppk_zscore"] = (
-                    dff_deals_filtered.loc[dff_deals_filtered["vehicle"] == model, "ppk_listing"] - mean_ppk
-                ) / std_ppk
+    # Calculate per-model statistics using vectorized operations (much faster than loops)
+    deals_model_stats = dff_deals_filtered.groupby("vehicle")["ppk_listing"].agg(["mean", "std", "count"]).reset_index()
+    deals_model_stats.columns = ["vehicle", "mean_ppk", "std_ppk", "count"]
+    
+    # Filter models with at least 2 listings and valid std
+    deals_model_stats = deals_model_stats[(deals_model_stats["count"] >= 2) & (deals_model_stats["std_ppk"] > 0)]
+    
+    # Merge stats back to dff_deals_filtered
+    dff_deals_filtered = dff_deals_filtered.merge(deals_model_stats[["vehicle", "mean_ppk", "std_ppk"]], on="vehicle", how="left")
+    
+    # Calculate z-score using vectorized operations
+    dff_deals_filtered["ppk_zscore"] = (dff_deals_filtered["ppk_listing"] - dff_deals_filtered["mean_ppk"]) / dff_deals_filtered["std_ppk"]
+    
+    # Clean up temporary columns
+    dff_deals_filtered = dff_deals_filtered.drop(columns=["mean_ppk", "std_ppk"])
 
     # Always get top 10 best deals (no threshold filter)
     # Filter out NaN z-scores and take top 10 by z-score (lowest = best)
