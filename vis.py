@@ -1345,9 +1345,9 @@ app.layout = dbc.Container(
         html.Div(
             className="section",
             children=[
-                html.Div("MARKET OVERVIEW", className="section-title"),
+                html.Div("ISRAEL MARKET OVERVIEW", className="section-title"),
                 html.Div(
-                    "Key performance indicators and market trends at a glance",
+                    "Key performance indicators and market trends at a glance - Israeli Car Market",
                     className="section-sub",
                 ),
             ],
