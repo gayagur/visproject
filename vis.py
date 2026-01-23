@@ -572,31 +572,42 @@ def fig_smart_buyer_matrix(
         )
         return fig, []
 
-    # Compute Price per km (PPK) per model
-    # AvgPPK = AvgPrice / AvgMileageKm
-    # If AvgMileageKm <= 0, set AvgPPK = NaN and exclude from scoring
-    # Since we already filtered avg_mileage > 0, division is safe
-    vehicle_stats["avg_ppk"] = vehicle_stats["avg_price"] / vehicle_stats["avg_mileage"]
+    # Multi-Factor Value Score Calculation
+    # Combines: Price (50%), Mileage (30%), Price Stability (20%)
+    # This provides a balanced assessment that rewards cheaper cars with lower mileage
     
-    # Sanity check: all avg_mileage should be > 0 after filtering
-    assert (vehicle_stats["avg_mileage"] > 0).all(), "All avg_mileage must be > 0"
-    
-    # Drop any NaN cases (shouldn't happen after filtering, but for robustness)
-    vehicle_stats = vehicle_stats.dropna(subset=["avg_ppk"])
-
-    # Scoring: Use AvgPPK directly as "worse if larger"
-    # RawScore = AvgPPK (units: currency/km)
-    # Normalize to 0-100 and invert so higher means better value
-    raw_score = vehicle_stats["avg_ppk"]
-    min_raw = raw_score.min()
-    max_raw = raw_score.max()
-    
-    if max_raw > min_raw:
-        # Invert: lower PPK = better value, so higher normalized score
-        vehicle_stats["value_normalized"] = 100 * (1 - (raw_score - min_raw) / (max_raw - min_raw))
+    # 1. Price Score: Lower price = better value (50% weight)
+    price_min = vehicle_stats["avg_price"].min()
+    price_max = vehicle_stats["avg_price"].max()
+    if price_max > price_min:
+        price_score = 100 * (1 - (vehicle_stats["avg_price"] - price_min) / (price_max - price_min))
     else:
-        # All models have same PPK
-        vehicle_stats["value_normalized"] = 50
+        price_score = pd.Series([50] * len(vehicle_stats))
+    
+    # 2. Mileage Score: Lower mileage = better (less used car) (30% weight)
+    mileage_min = vehicle_stats["avg_mileage"].min()
+    mileage_max = vehicle_stats["avg_mileage"].max()
+    if mileage_max > mileage_min:
+        mileage_score = 100 * (1 - (vehicle_stats["avg_mileage"] - mileage_min) / (mileage_max - mileage_min))
+    else:
+        mileage_score = pd.Series([50] * len(vehicle_stats))
+    
+    # 3. Price Stability Score: Lower std = better (more predictable pricing) (20% weight)
+    # Fill NaN std values with 0 (no variation = perfect stability)
+    price_std_filled = vehicle_stats["price_std"].fillna(0)
+    std_min = price_std_filled.min()
+    std_max = price_std_filled.max()
+    if std_max > std_min:
+        stability_score = 100 * (1 - (price_std_filled - std_min) / (std_max - std_min))
+    else:
+        stability_score = pd.Series([100] * len(vehicle_stats))  # All same = perfect stability
+    
+    # Combine scores with weights
+    vehicle_stats["value_normalized"] = (
+        0.5 * price_score + 
+        0.3 * mileage_score + 
+        0.2 * stability_score
+    )
     
     # Clip to [0, 100] for safety
     vehicle_stats["value_normalized"] = vehicle_stats["value_normalized"].clip(0, 100)
@@ -671,7 +682,7 @@ def fig_smart_buyer_matrix(
                 + f"<span style='color:#001D39;'>Avg Mileage: {row['avg_mileage']:,.0f} km</span><br>"
                 + f"<span style='color:#49769F;'>Std Mileage: {row['mileage_std']:,.0f} km</span><br>"
                 + f"<span style='color:#001D39;'>Available: {row['count']:,} cars</span><br>"
-                + f"<span style='color:#49769F;'>Avg Price/km: ₪{row['avg_ppk']:.2f}</span><br>"
+                + f"<span style='color:#49769F;'>Avg Price/km: ₪{row['avg_price'] / row['avg_mileage']:.2f}</span><br>"
                 + f"<span style='color:{color};font-weight:600;'>Value Score: {color_val:.0f}</span><br>"
                 + "<extra></extra>",
             )
@@ -760,63 +771,118 @@ def create_best_deals_cards(data: pd.DataFrame, max_results: int = 10, displayed
             style={"padding": "32px", "textAlign": "center"},
         )
     
-    # Sort by z-score (lowest = best) and take top N
-    best_deals = dff_valid.nsmallest(max_results, "ppk_zscore")
-    best_deals = best_deals.sort_values("ppk_zscore")
-
-    # CRITICAL: Calculate Value Score normalization based on FULL FILTERED dataset, not just best_deals
+    # CRITICAL: Calculate Multi-Factor Value Score based on FULL FILTERED dataset
     # This ensures ratings are relative to all filtered cars (all cars in the scatter chart),
     # not just the top 10 deals being displayed
-    # Ratings are based on percentiles of the full filtered dataset distribution
-    z_min = None
-    z_max = None
+    # Use the same multi-factor calculation as Smart Buyer Matrix: Price (50%) + Mileage (30%) + Stability (20%)
+    
+    # Calculate model-level stats for price stability (needed for Value Score)
+    model_price_stats = dff.groupby("vehicle")["price"].agg(["mean", "std", "count"]).reset_index()
+    model_price_stats.columns = ["vehicle", "model_avg_price", "model_price_std", "model_count"]
+    model_price_stats = model_price_stats[model_price_stats["model_count"] >= 2]
+    
+    # Merge price stats to dff_valid for stability calculation (before selecting best deals)
+    dff_valid = dff_valid.merge(model_price_stats[["vehicle", "model_price_std"]], on="vehicle", how="left")
+    dff_valid["model_price_std"] = dff_valid["model_price_std"].fillna(0)
+    
+    # Calculate Value Score for full dataset (for normalization)
+    full_value_scores = None
+    full_dff = None
     
     if full_dataset is not None and len(full_dataset) > 0:
-        # Calculate z-scores for the full filtered dataset to get proper normalization baseline
-        # Use vectorized operations for better performance
         full_dff = full_dataset.copy()
-        full_dff["ppk_listing"] = full_dff["price"] / full_dff["mileage"].clip(lower=1.0)
         
-        # Calculate per-model statistics using vectorized operations
-        full_model_stats = full_dff.groupby("vehicle")["ppk_listing"].agg(["mean", "std", "count"]).reset_index()
-        full_model_stats.columns = ["vehicle", "mean_ppk", "std_ppk", "count"]
+        # Calculate model-level stats for full dataset
+        full_model_price_stats = full_dff.groupby("vehicle")["price"].agg(["mean", "std", "count"]).reset_index()
+        full_model_price_stats.columns = ["vehicle", "model_avg_price", "model_price_std", "model_count"]
+        full_model_price_stats = full_model_price_stats[full_model_price_stats["model_count"] >= 2]
         
-        # Filter models with at least 2 listings and valid std
-        full_model_stats = full_model_stats[(full_model_stats["count"] >= 2) & (full_model_stats["std_ppk"] > 0)]
+        # Merge stats
+        full_dff = full_dff.merge(full_model_price_stats[["vehicle", "model_price_std"]], on="vehicle", how="left")
+        full_dff["model_price_std"] = full_dff["model_price_std"].fillna(0)
         
-        # Merge stats back to full_dff
-        full_dff = full_dff.merge(full_model_stats[["vehicle", "mean_ppk", "std_ppk"]], on="vehicle", how="left")
+        # Calculate multi-factor Value Score for all listings in full dataset
+        # 1. Price Score (50%)
+        price_min = full_dff["price"].min()
+        price_max = full_dff["price"].max()
+        if price_max > price_min:
+            price_scores = 100 * (1 - (full_dff["price"] - price_min) / (price_max - price_min))
+        else:
+            price_scores = pd.Series([50] * len(full_dff))
         
-        # Calculate z-score using vectorized operations
-        full_dff["ppk_zscore"] = (full_dff["ppk_listing"] - full_dff["mean_ppk"]) / full_dff["std_ppk"]
+        # 2. Mileage Score (30%)
+        mileage_min = full_dff["mileage"].min()
+        mileage_max = full_dff["mileage"].max()
+        if mileage_max > mileage_min:
+            mileage_scores = 100 * (1 - (full_dff["mileage"] - mileage_min) / (mileage_max - mileage_min))
+        else:
+            mileage_scores = pd.Series([50] * len(full_dff))
         
-        # Get all valid z-scores from full filtered dataset (exclude NaN)
-        all_z_scores_neg = -full_dff["ppk_zscore"].dropna()
-        if len(all_z_scores_neg) > 0:
-            # Calculate min/max from full filtered dataset for normalization
-            z_min = all_z_scores_neg.min()
-            z_max = all_z_scores_neg.max()
+        # 3. Price Stability Score (20%) - use model-level std
+        std_min = full_dff["model_price_std"].min()
+        std_max = full_dff["model_price_std"].max()
+        if std_max > std_min:
+            stability_scores = 100 * (1 - (full_dff["model_price_std"] - std_min) / (std_max - std_min))
+        else:
+            stability_scores = pd.Series([100] * len(full_dff))
+        
+        # Combine scores
+        full_value_scores = 0.5 * price_scores + 0.3 * mileage_scores + 0.2 * stability_scores
+        full_value_scores = full_value_scores.clip(0, 100)
     
-    # Fallback: if full_dataset not provided or no valid z-scores, use best_deals
-    if z_min is None or z_max is None:
-        z_scores_neg = -best_deals["ppk_zscore"].values
-        z_min = z_scores_neg.min()
-        z_max = z_scores_neg.max()
-    
-    # Calculate Value Score for each best deal using the normalization from full filtered dataset
-    z_scores_neg_best = -best_deals["ppk_zscore"].values
-    if z_max > z_min:
-        value_scores = 100 * (z_scores_neg_best - z_min) / (z_max - z_min)
+    # Calculate Value Score for ALL valid deals (dff_valid) using same normalization as full dataset
+    # Use min/max from full dataset if available, otherwise use dff_valid
+    if full_dff is not None and len(full_dff) > 0:
+        # Use same normalization ranges as full dataset
+        full_price_min = full_dff["price"].min()
+        full_price_max = full_dff["price"].max()
+        full_mileage_min = full_dff["mileage"].min()
+        full_mileage_max = full_dff["mileage"].max()
+        full_std_min = full_dff["model_price_std"].min()
+        full_std_max = full_dff["model_price_std"].max()
     else:
-        value_scores = np.ones(len(z_scores_neg_best)) * 50
+        # Fallback to dff_valid ranges
+        full_price_min = dff_valid["price"].min()
+        full_price_max = dff_valid["price"].max()
+        full_mileage_min = dff_valid["mileage"].min()
+        full_mileage_max = dff_valid["mileage"].max()
+        full_std_min = dff_valid["model_price_std"].min()
+        full_std_max = dff_valid["model_price_std"].max()
+    
+    # 1. Price Score (50%) - normalized to full dataset range
+    if full_price_max > full_price_min:
+        price_scores = 100 * (1 - (dff_valid["price"] - full_price_min) / (full_price_max - full_price_min))
+    else:
+        price_scores = pd.Series([50] * len(dff_valid))
+    
+    # 2. Mileage Score (30%) - normalized to full dataset range
+    if full_mileage_max > full_mileage_min:
+        mileage_scores = 100 * (1 - (dff_valid["mileage"] - full_mileage_min) / (full_mileage_max - full_mileage_min))
+    else:
+        mileage_scores = pd.Series([50] * len(dff_valid))
+    
+    # 3. Price Stability Score (20%) - normalized to full dataset range
+    if full_std_max > full_std_min:
+        stability_scores = 100 * (1 - (dff_valid["model_price_std"] - full_std_min) / (full_std_max - full_std_min))
+    else:
+        stability_scores = pd.Series([100] * len(dff_valid))
+    
+    # Combine scores and add to dff_valid
+    value_scores = 0.5 * price_scores + 0.3 * mileage_scores + 0.2 * stability_scores
+    value_scores = value_scores.clip(0, 100)
+    dff_valid["value_score"] = value_scores
+    
+    # Sort by Value Score (highest = best) and take top N
+    best_deals = dff_valid.nlargest(max_results, "value_score")
+    best_deals = best_deals.sort_values("value_score", ascending=False)
 
     # Create cards in a grid (4 per row)
     cards = []
     for idx, (_, row) in enumerate(best_deals.iterrows()):
         z_score_neg = -row["ppk_zscore"]
         
-        # Use Value Score calculated from full dataset normalization
-        value_score = value_scores[idx]
+        # Use Value Score from the row (already calculated and sorted)
+        value_score = row["value_score"]
         
         # Color palette matching Value Score legend EXACTLY
         # Use same thresholds as legend: ≥75, 55-74, 35-54, <35
@@ -1279,9 +1345,9 @@ app.layout = dbc.Container(
         html.Div(
             className="section",
             children=[
-                html.Div("MARKET OVERVIEW", className="section-title"),
+                html.Div("ISRAEL MARKET OVERVIEW", className="section-title"),
                 html.Div(
-                    "Key performance indicators and market trends at a glance",
+                    "Key performance indicators and market trends at a glance - Israeli Car Market",
                     className="section-sub",
                 ),
             ],
@@ -1928,29 +1994,43 @@ def render_tab(active_tab):
                                                 ),
                                                 html.Li(
                                                     [
-                                                        html.Strong("Price per km: "),
-                                                        "Compute average price per km per model:",
-                                                        html.Code(
-                                                            "AvgPPK = AvgPrice / AvgMileageKm",
-                                                            style={
-                                                                "background": "rgba(168, 150, 168, 0.15)",
-                                                                "padding": "2px 6px",
-                                                                "borderRadius": "4px",
-                                                                "fontSize": "11px",
-                                                                "marginLeft": "6px",
-                                                                "color": "#374151",
-                                                            },
-                                                        ),
-                                                        " (units: currency/km). Lower AvgPPK means better value.",
+                                                        html.Strong("Multi-Factor Value Score: "),
+                                                        "Calculate Value Score using three factors:",
                                                     ],
                                                     style={"marginBottom": "8px", "fontSize": "13px"},
                                                 ),
+                                                html.Ul(
+                                                    [
+                                                        html.Li(
+                                                            [
+                                                                html.Strong("Price (50%): "),
+                                                                "Lower average price = better value. Price is normalized to 0-100 scale.",
+                                                            ],
+                                                            style={"marginBottom": "6px", "fontSize": "12px", "marginLeft": "20px"},
+                                                        ),
+                                                        html.Li(
+                                                            [
+                                                                html.Strong("Mileage (30%): "),
+                                                                "Lower average mileage = better (less used car). Mileage is normalized to 0-100 scale.",
+                                                            ],
+                                                            style={"marginBottom": "6px", "fontSize": "12px", "marginLeft": "20px"},
+                                                        ),
+                                                        html.Li(
+                                                            [
+                                                                html.Strong("Price Stability (20%): "),
+                                                                "Lower price standard deviation = better (more predictable pricing). Stability is normalized to 0-100 scale.",
+                                                            ],
+                                                            style={"marginBottom": "6px", "fontSize": "12px", "marginLeft": "20px"},
+                                                        ),
+                                                    ],
+                                                    style={"marginBottom": "8px"},
+                                                ),
                                                 html.Li(
                                                     [
-                                                        html.Strong("Normalization: "),
-                                                        "Normalize AvgPPK to 0–100 scale and invert so higher means better value:",
+                                                        html.Strong("Combined Score: "),
+                                                        "Each factor is normalized to 0-100, then combined: ",
                                                         html.Code(
-                                                            "ValueNorm = 100 * (1 - (AvgPPK - min)/(max - min))",
+                                                            "ValueScore = 0.5 × Price_score + 0.3 × Mileage_score + 0.2 × Stability_score",
                                                             style={
                                                                 "background": "rgba(168, 150, 168, 0.15)",
                                                                 "padding": "2px 6px",
@@ -1960,7 +2040,7 @@ def render_tab(active_tab):
                                                                 "color": "#374151",
                                                             },
                                                         ),
-                                                        " If max==min, set ValueNorm = 50 for all. Clip to [0, 100].",
+                                                        " Final score is clipped to [0, 100].",
                                                     ],
                                                     style={"marginBottom": "8px", "fontSize": "13px"},
                                                 ),
@@ -2034,15 +2114,15 @@ def render_tab(active_tab):
                                                 ),
                                                 html.Li(
                                                     [
-                                                        html.Strong("Deal threshold: ", style={"color": "#374151"}),
-                                                        html.Span("Keep listings where Z_PPK < -0.5 (PPK at least 0.5 std below model mean).", style={"color": "#6B7280"}),
+                                                        html.Strong("Value Score calculation: ", style={"color": "#374151"}),
+                                                        html.Span("For each listing, calculate the same Multi-Factor Value Score as used in the Smart Buyer Matrix: Price (50%) + Mileage (30%) + Price Stability (20%). This rewards cheaper cars with lower mileage.", style={"color": "#6B7280"}),
                                                     ],
                                                     style={"marginBottom": "8px", "fontSize": "13px"},
                                                 ),
                                                 html.Li(
                                                     [
                                                         html.Strong("Ranking: "),
-                                                        "Sort by most negative Z_PPK (best relative deal) and display the top results.",
+                                                        "Sort all listings by PPK z-score (most negative = best relative to model average) to find deals, then display the top 10. Value Score ratings are based on the full filtered dataset distribution.",
                                                     ],
                                                     style={"marginBottom": "8px", "fontSize": "13px"},
                                                 ),
@@ -2670,7 +2750,8 @@ def update_buyer_guide(vehicles, price_range, max_mileage, country, transmission
     # This ensures ratings are relative to all filtered cars, not just the top 10
     deals_cards = create_best_deals_cards(dff_deals, displayed_vehicles=displayed_vehicles, full_dataset=dff_deals)
 
-    # Store best deals data for modal
+    # Store best deals data for modal - use same logic as create_best_deals_cards
+    # This ensures the order matches the cards displayed
     dff_deals_filtered = dff_deals.copy()
     if displayed_vehicles and len(displayed_vehicles) > 0:
         dff_deals_filtered = dff_deals_filtered[dff_deals_filtered["vehicle"].isin(displayed_vehicles)]
@@ -2695,14 +2776,64 @@ def update_buyer_guide(vehicles, price_range, max_mileage, country, transmission
     # Clean up temporary columns
     dff_deals_filtered = dff_deals_filtered.drop(columns=["mean_ppk", "std_ppk"])
 
-    # Always get top 10 best deals (no threshold filter)
-    # Filter out NaN z-scores and take top 10 by z-score (lowest = best)
+    # Filter out NaN z-scores
     dff_deals_valid = dff_deals_filtered[dff_deals_filtered["ppk_zscore"].notna()].copy()
-    best_deals_data = dff_deals_valid.nsmallest(10, "ppk_zscore") if len(dff_deals_valid) > 0 else pd.DataFrame()
-    best_deals_data = best_deals_data.sort_values("ppk_zscore") if len(best_deals_data) > 0 else pd.DataFrame()
-
-    # Convert to dict for storage
-    deals_store_data = best_deals_data.to_dict("records") if len(best_deals_data) > 0 else {}
+    
+    if len(dff_deals_valid) == 0:
+        deals_store_data = {}
+    else:
+        # Calculate model-level stats for price stability (needed for Value Score)
+        model_price_stats = dff_deals_filtered.groupby("vehicle")["price"].agg(["mean", "std", "count"]).reset_index()
+        model_price_stats.columns = ["vehicle", "model_avg_price", "model_price_std", "model_count"]
+        model_price_stats = model_price_stats[model_price_stats["model_count"] >= 2]
+        
+        # Merge price stats to dff_deals_valid for stability calculation
+        dff_deals_valid = dff_deals_valid.merge(model_price_stats[["vehicle", "model_price_std"]], on="vehicle", how="left")
+        dff_deals_valid["model_price_std"] = dff_deals_valid["model_price_std"].fillna(0)
+        
+        # Calculate Value Score using same normalization as full dataset
+        # Use min/max from full dataset (dff_deals) for normalization
+        full_price_min = dff_deals["price"].min()
+        full_price_max = dff_deals["price"].max()
+        full_mileage_min = dff_deals["mileage"].min()
+        full_mileage_max = dff_deals["mileage"].max()
+        
+        # Calculate model_price_std for full dataset
+        full_model_price_stats = dff_deals.groupby("vehicle")["price"].agg(["mean", "std", "count"]).reset_index()
+        full_model_price_stats.columns = ["vehicle", "model_avg_price", "model_price_std", "model_count"]
+        full_model_price_stats = full_model_price_stats[full_model_price_stats["model_count"] >= 2]
+        full_std_min = full_model_price_stats["model_price_std"].min() if len(full_model_price_stats) > 0 else 0
+        full_std_max = full_model_price_stats["model_price_std"].max() if len(full_model_price_stats) > 0 else 0
+        
+        # 1. Price Score (50%)
+        if full_price_max > full_price_min:
+            price_scores = 100 * (1 - (dff_deals_valid["price"] - full_price_min) / (full_price_max - full_price_min))
+        else:
+            price_scores = pd.Series([50] * len(dff_deals_valid))
+        
+        # 2. Mileage Score (30%)
+        if full_mileage_max > full_mileage_min:
+            mileage_scores = 100 * (1 - (dff_deals_valid["mileage"] - full_mileage_min) / (full_mileage_max - full_mileage_min))
+        else:
+            mileage_scores = pd.Series([50] * len(dff_deals_valid))
+        
+        # 3. Price Stability Score (20%)
+        if full_std_max > full_std_min:
+            stability_scores = 100 * (1 - (dff_deals_valid["model_price_std"] - full_std_min) / (full_std_max - full_std_min))
+        else:
+            stability_scores = pd.Series([100] * len(dff_deals_valid))
+        
+        # Combine scores and add to dff_deals_valid
+        value_scores = 0.5 * price_scores + 0.3 * mileage_scores + 0.2 * stability_scores
+        value_scores = value_scores.clip(0, 100)
+        dff_deals_valid["value_score"] = value_scores
+        
+        # Sort by Value Score (highest = best) and take top 10
+        best_deals_data = dff_deals_valid.nlargest(10, "value_score")
+        best_deals_data = best_deals_data.sort_values("value_score", ascending=False)
+        
+        # Convert to dict for storage
+        deals_store_data = best_deals_data.to_dict("records") if len(best_deals_data) > 0 else {}
 
     return matrix_fig, deals_cards, deals_store_data
 
